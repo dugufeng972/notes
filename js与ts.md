@@ -37,7 +37,7 @@ let stu2 = {
 
 > number、 string、 boolean、symbol、 null、 undefined
 
-===严格模式下，null 和 undefined 只能赋值给 null 和 undefined==
+<mark>严格模式下，null 和 undefined 只能赋值给 null 和 undefined</mark>
 
 ### 对象类型
 
@@ -94,7 +94,7 @@ function tot(a: string | number): string | void {
 }
 ```
 
-==ts 中可以用 typeof 获取变量类型==
+<mark>ts 中可以用 typeof 获取变量类型</mark>
 
 ```ts
 let person = {
@@ -117,9 +117,9 @@ getVal.call(person, "name");
 > 类本身就可以充当类型
 
 1. 类的定义
-
+   
    > ts 中所有没有默认值的属性，必须要在构造函数中赋值(可选属性和静态属性除外)
-
+   
    > 可以不给属性添加类型，ts 可以在构造函数中或从默认值中推导出属性类型
 
 ```ts
@@ -139,6 +139,7 @@ let c = new Circle(20);
 ```
 
 2. 类的简化定义
+   
    > ts 类可以将属性简写到构造函数中
 
 ```ts
@@ -149,6 +150,7 @@ let tom = new Animal("tom");
 ```
 
 3. 类的继承
+   
    > 必须包含父类中所有必选属性，必须使用 super 调用父类中的构造函数
 
 ```ts
@@ -161,16 +163,18 @@ class Cat extends Animal {
 ```
 
 4. 类的访问类型
-
 - `public`：公开属性，不加修饰符默认是 `public`
-- `protected`：受保护属性（只有本类和子类能访问）
-- `private`：只有本类中能访问
-- `readonly`：只读属性，初始化不能再次修改
-- `static`：静态属性
 
+- `protected`：受保护属性（只有本类和子类能访问）
+
+- `private`：只有本类中能访问
+
+- `readonly`：只读属性，初始化不能再次修改
+
+- `static`：静态属性
 5. 类的功能 -- 实例属性、原型属性、静态属性、属性访问器
 
-> 1.  属性访问器：用于访问父类中私有属性
+> 1. 属性访问器：用于访问父类中私有属性
 
 ```ts
 class A {
@@ -270,9 +274,9 @@ console.log(ins1 === ins2); // true
 ```
 
 7. 抽象类
-
+   
    > 包含抽象方法的类，不能被实例化只能被继承实现，不能包含静态属性和方法
-
+   
    > 抽象类可以包含具体的属性和方法
 
 ```ts
@@ -337,7 +341,6 @@ const enum User {
 > any、unknown、never、void、tuple(元组)
 
 1. any 和 unknown
-
 - any：含义是任何类型，被 any 修饰的变量将会被放弃类型检查，any 也可以被赋值给任何类型的变量
 - unknown：含义是不确定的类型，可以接受任何类型的变量，unknown 只能赋值给 unknown，unknown 类型的变量不能获取属性和方法
 
@@ -350,6 +353,7 @@ let n: number = a; // 这是可以的
 2. never
 
 3. void
+   
    > void 常用于声明函数的返回值类型，表示没有任何返回值。
    > 但在 TypeScript 中，返回值类型为 void 的函数类型可以接受任何返回值的函数。例如下面不会报错
 
@@ -365,6 +369,7 @@ fn(("a") => {
 ### 合成类型
 
 1. 联合类型
+   
    > 表示一个可以是几种类型之一，在被赋值时确定下到底是什么类型
 
 ```ts
@@ -389,7 +394,7 @@ a = [2, 3, 4, 5];
 
 ### 断言与 typeof
 
-==断言收缩类型==
+<mark>断言收缩类型</mark>
 
 > 断言只能在变量赋值后使用
 
@@ -407,7 +412,7 @@ let sss: string | boolean = false;
 sss as boolean as true;
 ```
 
-==注：typeof 收缩类型==
+<mark>注：typeof 收缩类型</mark>
 
 ```ts
 // 1. 使用typeof收缩类型
@@ -420,7 +425,7 @@ function getR(strOrNumberOrBool: string | number | boolean): void {
 }
 ```
 
-==ts 中可以用 typeof 获取变量类型==
+<mark>ts 中可以用 typeof 获取变量类型</mark>
 
 ```ts
 let person = {
@@ -439,6 +444,7 @@ getVal.call(person, "name");
 ```
 
 1. 交叉类型
+   
    > 多个不同类型合成一个类型
 
 ```ts
@@ -480,13 +486,14 @@ interface IFullname {
 ```
 
 2. interface 与 type 的区别
-
+   
    > 如果只是用来描述类一样的结构采用 interface
    > 如果涉及联合类型，则只能使用 type 来进行声明，且 type 不能被扩展
    > type 不能重名，interface 重名可以合并
    > type 在后续的学习中可以使用循环和条件，interface 不行
 
 3. interface 和 type 中匿名函数赋值方法
+   
    > 匿名函数可以定义多个，但是前面的匿名函数会覆盖后面的匿名函数无法调用
    > 给有匿名函数的 interface 和 type 类型赋值用`Object.assign`
 
@@ -511,14 +518,14 @@ console.log(click("a")); // 输出0
 ```
 
 4. 给 interface 添加修饰符
-
+   
    ```ts
    interface IVeg {
      readonly color: string;
      size: number;
      taste?: "sweet" | "sour"; // 可选的
    }
-
+   
    const tomato: IVeg = {
      color: "red",
      size: 20,
@@ -526,7 +533,6 @@ console.log(click("a")); // 输出0
    ```
 
 5. 如果对象的属性或方法多于接口，可以用下面的办法解决
-
 - 1. 采用断言的方式
 
 ```ts
@@ -545,6 +551,7 @@ const tt: IVeg = {
 ```
 
 - 2. 基于接口的特性写一个同名的接口
+     
      > 注意这种方法会影响实现同一个接口的对象，最好在新加的属性上加上可选
 
 ```ts
@@ -693,15 +700,16 @@ let a: R<"a"> = "fail";
 ### 2. 类型层级
 
 1. 兼容性
+   
    > 兼容性指的是什么值可以赋值给什么类型
-2. 层级
 
+2. 层级
+   
    > 窄类型可以赋值给宽类型
    > 例如："a" 可以赋值给 "a" | "b" | "c"
    > `string`类型可以赋值给 `String`类型
-
+   
    > 从结构上考虑，交叉类型 可以赋予 交叉前的类型
-
 - never 是最窄的类型
 - 字面量类型可以赋值给字面量联合类型
 - 字面量类型可以赋予基础类型
@@ -1189,7 +1197,7 @@ function* foo(x) {
 
 > js 语言采用单线程模型，也就是所有任务只能在一个线程上完成，web worker 的出现为 js 创造多线程环境，允许主线程创建 worker 线程，将一些任务分配给后者允许，在主线程运行的同时，worker 线程在后台运行，两者互不干扰。
 
-###
+### 
 
 ## 标准对象
 

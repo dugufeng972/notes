@@ -8,6 +8,8 @@ Windows：`choco install dart-sdk`
 
 ## 变量
 
+> `dart`所有类型都继承于`Object`，除了`null`
+
 ### 变量声明
 
 > `dart` 是强类型的，第一次赋值后类型不能再变了
@@ -485,14 +487,18 @@ Student p = new Student(age: 25, uname: "ss");
 
 2. 命名构造函数
 
-> 定义：构造函数可以采用命名的方式，返回一个实例化对象
+> 定义：构造函数可以采用命名的方式，返回一个实例化对象，一个类可以有多个命名构造函数
 
 > 定义语法：
 
 ```dart
 class 类名 {
     类名.构造函数名(可选命名参数) {
-   }
+    }
+
+    类名.构造函数名2(可选命名参数) {
+        // ...
+    }
  }
 // 实例化
 Pseron p = Person.构造函数名(属性名:值);
@@ -541,6 +547,64 @@ class Student {
 
 // 实例化与正常的构造函数一样
 ```
+
+#### 对象的比较
+
+> 在 Dart 中，对象比较主要分为两种情况：**值比较**和**引用比较**。
+
+**对于普通类的默认行为**
+
+> 自己创建的普通类，如果没有重写 `==` 运算符，比较的是**引用**（即内存地址）。
+
+```dart
+class Person {
+  final String name;
+  Person(this.name);
+}
+
+void main() {
+  var p1 = Person('Alice');
+  var p2 = Person('Alice');
+
+  print(identical(p1, p2)); // false，因为是两个不同的实例
+  print(p1 == p2);          // false，因为默认也是比较引用
+}
+```
+
+**实现值比较（重写 ==）**
+
+> 要让自定义类的实例能进行值比较，你需要重写 `==` 运算符，并同时重写 `hashCode`。
+
+```dart
+class Person {
+  final String name;
+  Person(this.name);
+
+  @override
+  bool operator ==(Object other) {
+    // 1. 检查是否为同一个对象（优化）
+    if (identical(this, other)) return true;
+    // 2. 检查类型是否相同
+    if (other is! Person) return false;
+    // 3. 比较关键属性
+    return other.name == name;
+  }
+
+  @override
+  int get hashCode => name.hashCode; // 必须与 == 保持一致
+}
+
+void main() {
+  var p1 = Person('Alice');
+  var p2 = Person('Alice');
+
+  print(p1 == p2); // true，因为重写了 ==，比较的是 name 属性
+}
+```
+
+**identical 函数**
+
+> **`identical(a, b)`**：这是 Dart 中最严格的比较。它检查两个对象是否是**同一个实例**，即它们在内存中的地址是否相同。与`==`的默认行为一致。
 
 ### 公有属性和私有属性
 
@@ -740,6 +804,119 @@ f
 
 - `await` 总是等到后面的 `Future` 执行成功，才执行下方逻辑，`async` 必须配套`await` 出现
 
+### stream --- 多次的异步结果
+
+> `Future`是一次性的异步结果，而`Stream`是多次的异步结果。
+> 
+> `Stream`的特点：
+> 
+> - **异步性**：`Stream`中的数据是异步产生和消费的
+> 
+> - **惰性**: `Stream` 只有在被监听时才开始产生数据
+> 
+> - **可组合**: 可以通过各种操作符组合和变换 `Stream`
+> 
+> - **背压处理**: 可以处理生产者和消费者速度不匹配的情况
+> 
+> - **发布订阅式**：
+> 
+> 单订阅流 和 广播流：
+> 
+> - 单订阅流：
+>   
+>   - 只能被订阅一次，事件会缓冲
+> 
+> - 广播流：
+>   
+>   - 可被多个订阅者同时监听
+> 
+> <mark>注意</mark>：流在不使用的时候应该被关闭
+
+#### 创建Stream
+
+```dart
+// 从迭代器中创建
+Stream<int> s1 = Stream<int>.fromIterable([1, 2, 3, 4]);
+// 从Future中创建
+Stream<int> s2 = Stream<int>.fromFuture(Future.value(42))；
+// 从周期性中创建
+Stream<int> s3 = Stream.periodic(const Duration(seconds: 1), (t) => t);
+
+// 使用 async* 和 yield（最常用）
+// async* 表示一个Stream，yield表示发出一个数据
+Stream<int> countStream(int max) async* {
+  for (int i = 1; i <= max; i++) {
+    await Future.delayed(Duration(seconds: 1));
+    yield i; // 每 1 秒产出一个
+  }
+}
+
+// 使用 StreamController 手动控制
+StreamController<int> controller = StreamController<int>();
+  // 生成stream流，并监听
+  controller.stream.listen(
+    (data) {
+      print('controller data: $data');
+    },
+    onDone: () => print('结束'),
+    onError: (err) => print(err),
+  );
+  // stream中添加数据
+  controller.add(1);
+  controller.add(10);
+  // 向stream中写入err数据
+  controller.addError('err');
+  // 关闭流
+  controller.close();r.close();
+```
+
+#### 订阅消费Stream
+
+```dart
+// await for 顺序处理
+// await for会阻塞当前程序执行
+var s1 = Stream.periodic(const Duration(seconds: 1), (t) => t);
+await for (var v in s1) {
+  print('await for: $v');
+}
+// listen消费
+final sub = countStream(3).listen(
+  (value) => print('数据: $value'),
+  onError: (e, st) => print('错误: $e'),
+  onDone: () => print('完成'),
+  cancelOnError: false, // 出错是否自动取消订阅
+);
+
+// 取消订阅
+await sub.cancel();
+```
+
+#### 链式处理Stream
+
+```dart
+var s1 = Stream.periodic(const Duration(seconds: 1), (t) => t);
+final subscription = s1
+    .where((n) => n % 2 == 0)
+    .map((n) => n * 10)
+    .listen((value) => print('value: $value'));
+// 关闭流
+Future.delayed(Duration(seconds: 20), () => subscription.cancel());
+```
+
+#### 广播流
+
+```dart
+final bc = StreamController<int>.broadcast();
+
+bc.stream.listen((v) => print('A: $v'));
+bc.stream.listen((v) => print('B: $v'));
+
+bc.add(1); // A: 1  B: 1
+bc.add(2); // A: 2  B: 2
+```
+
+
+
 # Flutter
 
 ## 配置Flutter环境
@@ -834,6 +1011,8 @@ void main() {
 
 ### 布局组件
 
+> <mark>布局约束：</mark>在flutter中，上层 widget 向下层 widget 传递约束条件；  然后，下层 widget 向上层 widget 传递大小信息。  最后，上层 widget 决定下层 widget 的位置。
+
 #### 布局组件介绍
 
 | 组件类别 | 核心组件                           | 主要特点/使用场景                           |
@@ -912,7 +1091,7 @@ class MainPage extends StatelessWidget {
 > 
 > 实现固定宽高且居中的组件：用Center包裹
 > 
-> ==注意事项：Center不能设置宽高，Center的最终大小取决于其父组件传递给它的约束，center会向它的父组件申请尽可能大的空间。==
+> <mark>注意事项：</mark>Center不能设置宽高，Center的最终大小取决于其父组件传递给它的约束，center会向它的父组件申请尽可能大的空间。
 
 ```dart
 class MainPage extends StatelessWidget {
@@ -948,7 +1127,7 @@ class MainPage extends StatelessWidget {
 > 
 > `heightFactor(高度因子)`：`Align的高度` 将是子组件高度乘以该因子
 
-> ==使用场景：当需要将一个组件放置在父容器的特定角落时，Align是理想选择。==
+> <mark>使用场景：</mark>当需要将一个组件放置在父容器的特定角落时，Align是理想选择。
 
 ```dart
 void main() {
@@ -986,9 +1165,14 @@ class MainPage extends StatelessWidget {
 | padding | EdgeInsetsGeometry | 必需。定义内边距的大小和方向，通常使用`EdgeInsets`类来设置 |
 | child   | Widget             | 需要被添加内边距的子组件                        |
 
-> 四个方向设置相同内间距 --- 使用 `EdgeInsets.all`进行设置
+> `EdgeInsets`的属性如下：
 
-> 设置某个方向的内间距 --- 使用 `EdgeInsets.only`
+| 属性        | 作用                  | 示例代码                                                    |
+| --------- | ------------------- | ------------------------------------------------------- |
+| all       | 设置所有方向的空白           | `EdgeInsets.all(8.0)`                                   |
+| symmetric | 设置对称方向的空白，包括垂直和水平方向 | `EdgeInsets.symmetric(vertical: 10.0, horizontal: 5.0)` |
+| fromLTRB  | 分别设置左、上、右、下四个方向的空白  | `EdgeInsets.fromLTRB(5.0, 10.0, 15.0, 20.0)`            |
+| only      | 设置某个方向的空白，其他方向默认为 0 | `EdgeInsets.only(left: 10.0)`                           |
 
 ```dart
 void main() {
@@ -1019,14 +1203,13 @@ class MainPage extends StatelessWidget {
 
 #### 线性布局 --- Column
 
-> 作用：用于垂直排列其子组件的核心布局容器
+> 作用：用于垂直排列其子组件的核心布局容器，`Column`继承于`Flex`
 
-> ==注意==：column没有宽高，如果没有给父元素设置宽高的话，会默认撑满整个父元素高度，宽度是其子元素最大的宽度。如果设置了父元素宽高，会撑满整个父元素。
+> <mark>注意：</mark> `Column`没有宽高，如果没有给父元素设置宽高的话，会默认撑满整个父元素高度，宽度是其子元素最大的宽度。`Column`在宽度上是收缩，如果设置了父元素宽高，会撑满整个父元素。
 
-==常见属性==
-<img src="./pic/dart/屏幕截图 2026-01-19 102129.png">
+**常见属性**<img src="./pic/dart/屏幕截图 2026-01-19 102129.png">
 
-==主轴排列方式==
+**主轴排列方式**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 102254.png">
 
@@ -1056,7 +1239,7 @@ class MainPage extends StatelessWidget {
 }
 ```
 
-==交叉轴排列方式==
+**交叉轴排列方式**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 103844.png">
 
@@ -1089,35 +1272,35 @@ class MainPage extends StatelessWidget {
 
 #### 线性布局 --- Row
 
-> 作用：用于水平排列其子组件的核心布局容器
+> 作用：用于水平排列其子组件的核心布局容器，`Row`继承于`Flex`
 
-> ==注意：== Row本身不支持滚动，如果内容超出，需要使用`ListView`或者`SingleChildScrollView`包裹，需要==明确尺寸约束==，父组件的大小直接影响Row的最终大小和子组件的布局行为。
+> <mark>注意：</mark>  `Row`本身不支持滚动，如果内容超出，需要使用`ListView`或者`SingleChildScrollView`包裹，需要<mark>父元素明确告知宽度的尺寸约束</mark>，`Row`默认情况下不会给父组件的大小直接影响Row的最终大小和子组件的布局行为。
 
 <img src="./pic/dart/屏幕截图 2026-01-19 104618.png">
 
-==主轴排列方式==
+**主轴排列方式**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 104717.png">
 
-==交叉轴==
+**交叉轴**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 105335.png">
 
-==使用与column基本一样==
+**使用与column基本一样**
 
 #### 弹性布局 --- Flex
 
 > 作用：允许`沿一个主轴（水平或垂直）`排列其子组件，灵活的控制这些子组件在主轴上的`尺寸比例`和`空间分配`。
 > 
-> flex很像column和row的结合体
+> `Flex`很像`Column`和`Row`的结合体，`Column`和`Row`继承于`Flex`
 
-==常用属性==
+**常用属性**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 110010.png">
 
-> 子组件：Flex的子组件常使用Expanded或Flexible来控制空间分配。
+> 子组件：`Flex`的子组件常使用`Expanded`或`Flexible`来控制空间分配。
 > 
-> Expanded/Flexible作为flex的子组件通过flex属性来分配flex组件空间
+> `Expanded/Flexible`作为`Flex`的子组件通过`Flex`属性来分配`Flex`组件空间
 
 ```dart
 class MainPage extends StatelessWidget {
@@ -1159,9 +1342,11 @@ class MainPage extends StatelessWidget {
 > flex布局受父组件的约束影响。确保父组件提供了适当的布局约束
 > expanded与flexible的区别：expanded强制子组件填满所以剩余空间，flexible根据自身大小调整，不强制占满空间。
 
-##### 弹性布局容器 ---- Expanded
+##### 弹性布局容器 ---- Expanded（强制占用）
 
-> Expanded会尽可能的填充父组件的剩余部分
+> `Expanded` 弹性布局组件只能用于`Flex`及其继承者（`Column`和`Row`）的内部。
+> 
+> 作用：`Expanded`的子组件会**强制占满**主轴上的剩余空间
 
 ```dart
 class _TitleBarState extends State<TitleBar> {
@@ -1213,19 +1398,39 @@ class _TitleBarState extends State<TitleBar> {
 }
 ```
 
+##### 弹性布局容器 ---- Flexible（可选占用）
+
+> `Flexible` 弹性布局组件只能用于`Flex`及其继承者（`Column`和`Row`）的内部。
+> 
+> 作用：`Flexible`子组件可以占满剩余空间，也可以不占
+
+```dart
+Row(
+  children: [
+    Container(width: 80, color: Colors.red),
+    Flexible(
+      fit: FlexFit.loose,  // 不强制占满（默认）
+      child: Container(color: Colors.blue),
+    ),
+  ],
+)
+```
+
+
+
 #### 流式布局 --- Wrap
 
 > 作用：流式布局组件，当子组件在主轴方向上排列不下时，它会自动换行（或换列）
 
-==常用属性==
+**常用属性**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 130606.png">
 
-> ==注意：== `Column`/`Row`/`Flex`内容超出均不会换行。
+> <mark>注意：</mark> `Column`/`Row`/`Flex`内容超出均不会换行。
 > 
 > `Wrap`组件更像是`Flex组件加了换行特性`
 
-> ==使用场景：==
+> <mark>使用场景：</mark>
 > 
 > - 当子组件内容是根据数据动态生成时，使用Wrap可以确保布局始终适配。
 >   <img src="./pic/dart/屏幕截图 2026-01-19 131247.png" style="height:100px; width:100px">
@@ -1272,15 +1477,15 @@ class MainPage extends StatelessWidget {
 
 > 作用：层叠布局组件，允许你将多个子组件按照Z轴（深度）进行叠加排列。
 
-==常用属性==
+**Stack 常用属性**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 133812.png">
 
-> 搭档：`Positioned`组件是`Stack`的黄金搭档，对子组件进行精确定位控制。`Positioned`必须作为`Stack`的直接子组件。`Positioned`通过`left`、`right`、`top`、`bottom`来将子组件“钉”在`Stack`的某个角落或边缘。
+> 搭档：`Positioned`组件是`Stack`的黄金搭档，对子组件进行精确定位控制。`Positioned`必须作为`Stack`的直接子组件。`Positioned`通过`left`、`right`、`top`、`bottom`属性来将子组件“钉”在`Stack`的某个角落或边缘。
 
-> ==注意：== positioned的位置定位，是相对于stack父元素的边界，positioned定位的优先级比子元素的宽高优先级高，先满足定位需求。
+> <mark>注意：</mark> `Positioned`的位置定位，是相对于`Stack`父元素的边界，`Positioned`定位的优先级比子元素的宽高优先级高，先满足定位需求。
 
-==没有positioned的案例==
+**没有positioned的案例**
 
 ```dart
 class MainPage extends StatelessWidget {
@@ -1307,7 +1512,7 @@ class MainPage extends StatelessWidget {
 }
 ```
 
-==有positioned的案例==
+**有positioned的案例**
 
 ```dart
 class MainPage extends StatelessWidget {
@@ -1345,11 +1550,15 @@ class MainPage extends StatelessWidget {
 }
 ```
 
+#### 裁剪组件 --- Clip
+
+
+
 #### 文本组件 --- Text
 
 > 作用：在用户界面中显示文本的基础组件。
 
-==常用属性==
+**常用属性**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 150325.png">
 
@@ -1401,17 +1610,17 @@ Text.rich(
 ),
 ```
 
-> ==注意事项：== Text组件本身和其TextStyle中都有可能有ovreflow等属性，Text组件属性优先级更高，假如文本过长最好设置`maxLines`和`overflow`。大量重复使用的文本样式，建议统一定义，有助于保持一致性并提升性能。
+> <mark>注意事项：</mark> `Text`组件本身和其`TextStyle`中都有可能有`ovreflow`等属性，`Text`组件属性优先级更高，假如文本过长最好设置`maxLines`和`overflow`。大量重复使用的文本样式，建议统一定义，有助于保持一致性并提升性能。
 
 #### 图片组件 --- Image
 
 > 作用：在用户界面中显示图片的核心部件
 
-==图片分类==
+**图片分类**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 155910.png">
 
-==常见属性==
+**常见属性**
 
 <img src="./pic/dart/屏幕截图 2026-01-19 160042.png">
 
@@ -1423,11 +1632,13 @@ assets:
 Image.asset("lib/images/R.jpg")
 ```
 
+### 表单组件
+
 #### 文本输入组件 --- TextField
 
 > 作用：实现文本输入功能的核心组件
 
-> ==注意：== 使用TextField必须使用`有状态组件`
+> <mark>注意：</mark> 使用`TextField`必须使用`有状态组件`
 
 <img src="./pic/dart/屏幕截图 2026-01-19 171903.png">
 
@@ -1521,6 +1732,12 @@ class _MainPageState extends State<MainPage> {
 }
 ```
 
+#### 表单组件 --- Form
+
+
+
+
+
 ### 滚动组件
 
 #### 常用滚动组件
@@ -1535,9 +1752,9 @@ class _MainPageState extends State<MainPage> {
 
 > 滚动方向：通过scrollDirection属性控制，默认垂直方向，也可以设置为水平方向。
 
-> ==注意：== `SingleChildScrollView`会一次性构建所有子组件，如果嵌套的Column或Row中包含大量子项，可能会导致性能问题，建议使用`ListView`
+> <mark>注意：</mark> `SingleChildScrollView`会一次性构建所有子组件，如果嵌套的`Column`或`Row`中包含大量子项，可能会导致性能问题，建议使用`ListView`
 
-> 控制滚动：绑定一个ScrollController对象给controller对象，可以使用跳转功能
+> 控制滚动：绑定一个`ScrollController`对象给controller对象，可以使用跳转功能
 
 > 控制滚动：controller：给组件的controller绑定ScrollController对象
 > 一个比较常见的案例是，去底部和去顶部
@@ -1574,7 +1791,7 @@ class _MainPageState extends State<MainPage> {
 }
 ```
 
-==有跳转的功能==
+**有跳转的功能**
 
 ```dart
 class MainPage extends StatefulWidget {
@@ -1664,13 +1881,13 @@ class _MainPageState extends State<MainPage> {
 
 > 作用：用于`构建可滚动列表`的核心部件，并提供流畅滚动体验。
 > 
-> 方式：提供多种构造函数，如默认构造函数（这个不会懒加载，后面三种都会懒加载）、ListView.builder、ListView.separated、ListView.custom
+> 方式：提供多种构造函数，如默认构造函数（这个不会懒加载，后面三种都会懒加载）、`ListView.builder`、`ListView.separated`、`ListView.custom`
 > 
 > 机制：采用按需渲染（懒加载），只构建当前可见区域的列表项，极大提升长列表性能
 
 <mark>默认构造函数来构造滚动列表</mark>
 
-> 这种方式不会懒加载数据，使用方式与SingleChildScrollView基本一样
+> 这种方式不会懒加载数据，使用方式与`SingleChildScrollView`基本一样
 
 ```dart
 class _MainPageState extends State<MainPage> {
@@ -2155,6 +2372,10 @@ Container(
                   ),
 ```
 
+### 悬浮组件
+
+
+
 ### 自定义组件 --- 无状态组件 和 有状态组件
 
 > 定义：根据自己特定的需求创建自己的`Widget`
@@ -2173,7 +2394,7 @@ Container(
 > 要点：`build` 返回一个 `Widget`
 > 场景：纯展示型组件，没有用户交互操作
 
-==案例：==
+**案例：**
 
 ```dart
 
@@ -2260,6 +2481,8 @@ class _MainPageState extends State<MainPage> {
 > 无状态组件快捷键：`statelessW`
 > 有状态组件快捷键：`statefulW`
 
+
+
 ### 生命周期 --- 无状态组件 和 有状态组件
 
 #### 无状态组件生命周期
@@ -2333,52 +2556,9 @@ class _MainPageState extends State<MainPage> {
 - 执行一次函数：`createState、initState、dispose`
 - InheritedWidget：专门用于在Widget树种自顶向下高效的共享数据，顶层组件提供数据，子孙节点直接获取。
 
-## 事件
+## 组件状态管理
 
-### 点击事件 --- GestureDetector
-
-> GestureDetector 是 Flutter 中最常用、功能最丰富的手势检测组件
-> 用法：使用 GestureDetector 包裹被点击的元素，传入onTap方法
-
-```dart
-class _MainPageState extends State<MainPage> {
-  @override
-  Widget build(BuildContext context) {
-    //  implement build
-    return MaterialApp(
-      title: "有状态自定义组件",
-      home: Scaffold(
-        appBar: AppBar(title: Text("头部区域"), centerTitle: true),
-        body: Center(child: Text("中部区域")),
-        bottomNavigationBar: SizedBox(
-          height: 80,
-          child: Center(
-            // 使用 GestureDetector
-            child: GestureDetector(
-              // 单击作用的元素，执行
-              onTap: () {
-                print("点击了一次。");
-              },
-              // 双击作用的元素，执行
-              onDoubleTap: () => print("双击了"),
-              // 作用的元素
-              child: Text("底部区域"),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-```
-
-### 组件点击事件
-
-> 除了 GestureDetector ，flutter还提供了其它事件绑定
-
-<img src="./pic/dart/屏幕截图 2026-01-18 150831.png">
-
-## 状态更新 --- setState
+### 单组件 --- setState
 
 > 数据的变化要更新UI视图，需要执行setState方法，setState方法会造成build的重新执行。
 > 
@@ -2431,6 +2611,326 @@ class _MainPageState extends State<MainPage> {
   }
 }
 ```
+
+### 跨组件 --- ValueNotifier 和 ValueListenableBuilder
+
+> **优点**：无需手动setState，自动刷新依赖的Widget。  
+> 
+> **缺点**：需要创建一个相关组件都能访问的状态
+> 
+> **适用**：少量全局状态（如主题切换、登录状态）。
+
+```dart
+// 创建全局可监听对象
+final counterNotifier = ValueNotifier<int>(0);
+
+// 在页面A读取
+ValueListenableBuilder(
+  valueListenable: counterNotifier,
+  builder: (context, value, child) => Text('$value'),
+)
+
+// 在页面B修改,修改后会通知页面A修改状态
+ElevatedButton(
+  onPressed: () => counterNotifier.value++,
+  child: Text('+1'),
+)
+```
+
+### 官方推荐 --- Provider
+
+> 使用：
+> 
+> - **添加依赖**：`flutter pub add provider`
+> 
+> - **创建状态类**：
+>   
+>   ```dart
+>   class Counter with ChangeNotifier {
+>     int _count = 0;
+>     int get count => _count;
+>   
+>     void increment() {
+>       _count++;
+>       notifyListeners(); // 关键：通知所有监听者刷新
+>     }
+>   }
+>   ```
+> 
+> - 在顶层提供，在子组件消费
+>   
+>   ```dart
+>   // 顶层（main.dart）
+>   return MultiProvider(
+>     providers: [ChangeNotifierProvider(create: (_) => Counter())],
+>     child: MyApp(),
+>   );
+>   
+>   // 子组件A：读取
+>   final counter = context.watch<Counter>();
+>   Text('${counter.count}');
+>   
+>   // 子组件B：修改
+>   final counter = context.read<Counter>();
+>   ElevatedButton(onPressed: counter.increment, child:Text('+1'))
+>   
+>   // watch默认监听整个状态类，如果修改一个组件没有使用的属性组件也会更新
+>   // 使用select精确监听
+>   // ComponentA：只监听count
+>   class ComponentA extends StatelessWidget {
+>     @override
+>     Widget build(BuildContext context) {
+>       final count = context.select<MyState, int>((state) => state.count);
+>       print('ComponentA rebuilt');
+>       return Text('Count: $count');
+>     }
+>   }
+>   
+>   // ComponentB：只监听name
+>   class ComponentB extends StatelessWidget {
+>     @override
+>     Widget build(BuildContext context) {
+>       final name = context.select<MyState, String>((state) => state.name);
+>       print('ComponentB rebuilt');
+>       return Text('Name: $name');
+>     }
+>   }
+>   ```
+
+> **注意**：
+> 
+> * `context.watch`：数据变化时**刷新**当前Widget。
+> 
+> * `context.read`：只获取对象，**不刷新**（用于按钮点击等事件）。
+> 
+> * 需要跨页面共享时，把`Provider`放在`MaterialApp`上层即可。
+
+### 更现代 --- Riverpod
+
+> Provider的升级版，**编译安全、无需BuildContext**
+
+```dart
+// 1. 创建状态
+final counterProvider = StateProvider<int>((ref) => 0);
+
+// 2. 读取（任意地方）
+final count = ref.watch(counterProvider);
+Text('$count');
+
+// 3. 修改（任意地方）
+ref.read(counterProvider.notifier).state++;
+```
+
+> **优势**：
+> 
+> * 不用传`context`，可在任何类/函数中使用。
+> 
+> * 依赖关系清晰，测试更友好。
+
+## 事件处理与通知
+
+> Flutter中的手势系统有两个独立的层。
+> 
+> - 第一层为原始指针(pointer)事件，它描述了屏幕上指针（例如，触摸、鼠标和触控笔）的位置和移动。 
+> 
+> - 第二层为手势，描述由一个或多个指针移动组成的语义动作，如拖动、缩放、双击等。
+
+### 原始指针事件处理
+
+> 原始指针事件(Pointer Event，在移动设备上通常为触摸事件)
+
+#### 命中测试简介
+
+> 在移动端，各个平台或UI系统的原始指针事件模型基本都是一致，即：一次完整的事件分为三个阶段：手指按下、手指移动、和手指抬起，而更高级别的手势（如点击、双击、拖动等）都是基于这些原始事件的。
+> 
+> 当指针按下时，Flutter会对应用程序执行**命中测试(Hit Test)**，以确定指针与屏幕接触的位置存在哪些组件（widget）， 指针按下事件（以及该指针的后续事件）然后被分发到由命中测试发现的最内部的组件，然后从那里开始，事件会在组件树中向上冒泡，这些事件会从最内部的组件被分发到组件树根的路径上的所有组件，这和Web开发中浏览器的**事件冒泡**机制相似， 但是Flutter中没有机制取消或停止“冒泡”过程，而浏览器的冒泡是可以停止的。
+> 
+> 注意，只有通过命中测试的组件才能触发事件。
+
+#### Listener 组件
+
+> `Listener`用于监听原始触摸事件，**监听的是它整个 `child` 子树（包括所有后代）中发生的事件**。
+> 
+> 下面是`Listener`的构造函数定义：
+
+```dart
+Listener({
+  Key key,
+  this.onPointerDown, //手指按下回调
+  this.onPointerMove, //手指移动回调
+  this.onPointerUp,//手指抬起回调
+  this.onPointerCancel,//触摸事件取消回调
+  this.behavior = HitTestBehavior.deferToChild, //决定子组件如何响应命中测试节会专门介绍
+  Widget child
+})
+```
+
+**示例**
+
+> 手指在一个容器上移动时显示手指相对于容器的位置。
+
+```dart
+class _PointerMoveIndicatorState extends State<PointerMoveIndicator> {
+  PointerEvent? _event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      child: Container(
+        alignment: Alignment.center,
+        color: Colors.blue,
+        width: 300.0,
+        height: 150.0,
+        child: Text(
+          '${_event?.localPosition ?? ''}',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      onPointerDown: (PointerDownEvent event) => setState(() => _event = event),
+      onPointerMove: (PointerMoveEvent event) => setState(() => _event = event),
+      onPointerUp: (PointerUpEvent event) => setState(() => _event = event),
+    );
+  }
+}
+```
+
+> 参数 `PointerDownEvent`、 `PointerMoveEvent`、 `PointerUpEvent` 都是`PointerEvent`的子类，注意 Pointer，即“指针”， 指事件的触发者，可以是鼠标、触摸板、手指。
+> 
+> `PointerEvent`类中包括当前指针的一些信息：
+> 
+> * `position`：它是指针相对于当对于全局坐标的偏移。
+> * `localPosition`: 它是指针相对于当对于`Listener`本身布局坐标的偏移。
+> * `delta`：两次指针移动事件（`PointerMoveEvent`）的距离。
+> * `pressure`：按压力度，如果手机屏幕支持压力传感器(如iPhone的3D Touch)，此属性会更有意义，如果手机不支持，则始终为1。
+> * `orientation`：指针移动方向，是一个角度值。
+> * 等等...
+
+#### 忽略指针事件
+
+> 假如不想让某个子树响应`PointerEvent`的话，可以使用`IgnorePointer`和`AbsorbPointer`，这两个组件都能阻止子树接收指针事件，即阻断命中测试。
+> 
+> 不同之处在于`AbsorbPointer`本身会参与命中测试，而`IgnorePointer`本身不会参与，这就意味着`AbsorbPointer`本身是可以接收指针事件的(但其子树不行)，而`IgnorePointer`不可以。
+
+**案例**
+
+```dart
+Listener(
+  child: AbsorbPointer(
+    child: Listener(
+      child: Container(
+        color: Colors.red,
+        width: 200.0,
+        height: 100.0,
+      ),
+      onPointerDown: (event)=>print("in"),
+    ),
+  ),
+  onPointerDown: (event)=>print("up"),
+)
+```
+
+> 点击`Container`时，由于它在`AbsorbPointer`的子树上，被阻断了命中测试，所以`Container`的`Listenser`接收不到指针事件，所以日志不会输出"in"，但`AbsorbPointer`本身是可以接收指针事件的，所以会输出"up"。
+> 
+> 如果将`AbsorbPointer`换成`IgnorePointer`，那么两个都不会输出。
+
+### 手势识别
+
+#### 点击事件 --- GestureDetector
+
+> `GestureDetector`是 Flutter 中最常用、功能最丰富的手势检测组件
+> 用法：使用`GestureDetector`包裹被点击的元素，传入`onTap`方法
+> 
+> <mark>注意：</mark> flutter存在手势竞争问题。如，`GestureDetector`的`onTap`和`onDoubleTap`同时存在时，触发`onTap`会有明显的延迟，因为flutter需要等待一下以确认是`onTap`还是`onDoubleTap`事件
+
+```dart
+class _MainPageState extends State<MainPage> {
+  @override
+  Widget build(BuildContext context) {
+    //  implement build
+    return MaterialApp(
+      title: "有状态自定义组件",
+      home: Scaffold(
+        appBar: AppBar(title: Text("头部区域"), centerTitle: true),
+        body: Center(child: Text("中部区域")),
+        bottomNavigationBar: SizedBox(
+          height: 80,
+          child: Center(
+            // 使用 GestureDetector
+            child: GestureDetector(
+              // 单击作用的元素，执行
+              onTap: () {
+                print("点击了一次。");
+              },
+              // 双击作用的元素，执行
+              onDoubleTap: () => print("双击了"),
+              // 作用的元素
+              child: Text("底部区域"),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+### 组件点击事件
+
+> 除了 GestureDetector ，flutter还提供了其它事件绑定
+
+<img src="./pic/dart/屏幕截图 2026-01-18 150831.png">
+
+## Flutter动画
+
+> 动画实现的原理：在一段时间内，快速地多次改变UI外观；由于人眼会产生视觉暂留，所以最终看到的就是一个“连续”的动画。
+> 
+> 将UI的一次改变称为一个动画帧，对应一次屏幕刷新。决定动画流畅度的一个重要指标就是帧率FPS（Frame Per Second），即每秒的动画帧数。
+> 
+> 一般情况下，对于人眼来说，动画帧率超过16 FPS，就基本能看了，超过 32 FPS就会感觉相对平滑，而超过 32 FPS，大多数人基本上就感受不到差别了。
+
+### 隐式动画
+
+> 由于隐式动画背后的实现原理和繁琐的操作细节被隐去了，可以通过几行代码就能实现动画，所以被称为隐式动画，Flutter中提供的`AnimatedContainer`、`AnimatedPadding`、`AnimatePositioned`、`AnimatedOpacity`、`AnimatedDefaultTextStyle`、`AnimatedSwitecher`都属于隐式动画。
+
+#### AnimatedContainer
+
+> `AnimatedContainer`的属性和`Container`属性基本是一样的，当`AnimatedContainer`属性改变的时候就会触发动画。
+
+**示例**
+
+> 必须要有duration参数
+
+```dart
+int _counter = 0;
+
+  void _incrementCounter() {
+    setState(() {
+      _counter++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          AnimatedContainer(
+            width: _counter % 2 == 0 ? 200 : 300,
+            height: _counter % 2 == 0 ? 200 : 300,
+            color: Colors.amber,
+            // 必需的参数，动画时间
+            duration: const Duration(seconds: 1),
+          ),
+          TextButton(onPressed: () => _incrementCounter(), child: Text("加一")),
+        ],
+      ),
+    );
+  }
+```
+
+
+
+
 
 ## Flutter样式
 
@@ -2612,6 +3112,7 @@ class _MainPageState extends State<MainPage> {
               index: index,
               // 父组件传入函数
               delFood: (index) {
+                // 闭包
                 _list.removeAt(index);
                 // 更新状态
                 setState(() {});

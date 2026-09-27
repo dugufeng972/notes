@@ -29,7 +29,7 @@
 
 2. 创建数据库
    `create database [if not exists] 数据库名 [default charset 字符集] [collate 排序规则];`
-   ==注：== [...]中的内容可选
+   <mark>注：</mark> [...]中的内容可选
 
 3. 删除数据库
    `drop database [if exists] 数据库名;`
@@ -256,32 +256,25 @@ update emp set idcard=20 where id=3;
 ### 执行顺序
 
 1. `FROM / JOIN`  (加载数据)
-   
-          ↓
+      ↓
 
 2. `WHERE`        (过滤原始行)
-   
-          ↓
+      ↓
 
 3. `GROUP BY`     (分组)
-   
-          ↓
+      ↓
 
 4. `HAVING`      (过滤分组)
-   
-          ↓
+      ↓
 
 5. `SELECT`       (选择列/计算)
-   
-          ↓
+      ↓
 
 6. `DISTINCT`     (去重)
-   
-          ↓
+      ↓
 
 7. `ORDER BY`     (排序)
-   
-          ↓
+      ↓
 
 8. `LIMIT`        (截取)
 
@@ -307,7 +300,7 @@ update emp set idcard=20 where id=3;
 4. 删除用户名
    `drop user '用户名'@'主机名';`
 
-==注：== 主机名可以使用`%`通配
+<mark>注：</mark> 主机名可以使用`%`通配
 
 ### 权限控制
 
@@ -442,12 +435,167 @@ alter table 表名 add constraint 外键名称 foreign key (外键字段名) ref
    | --------- | --- |
    | no active | 当在  |
    |           |     |
+
+## 多表查询
+
+> 定义：指从多张表中查询数据，如果不设置条件会产生笛卡尔积，导致查询结果暴增（无效增加）
+> 
+> 笛卡尔积：以两个集合为例，从两个集合A集合和B集合中查询，会将两个集合中所有行进行组合。也就是说，结果集的每一行都是A集合行和B集合行的和，而列数是A集合与B集合的积。
+> 
+> 下面是一个笛卡尔积
+
+| id  | class_id | name | gender | score | id  | name |
+| --- | -------- | ---- | ------ | ----- | --- | ---- |
+| 1   | 1        | 小明   | M      | 90    | 1   | 一班   |
+| 1   | 1        | 小明   | M      | 90    | 2   | 二班   |
+| 1   | 1        | 小明   | M      | 90    | 3   | 三班   |
+| 1   | 1        | 小明   | M      | 90    | 4   | 四班   |
+| 2   | 1        | 小红   | F      | 95    | 1   | 一班   |
+| 2   | 1        | 小红   | F      | 95    | 2   | 二班   |
+| 2   | 1        | 小红   | F      | 95    | 3   | 三班   |
+| 2   | 1        | 小红   | F      | 95    | 4   | 四班   |
+
+**多表查询分类**
+
+> - 连接查询：连接查询对多个表进行JOIN运算，就是先确定一个主表作为结果集，然后，把其他表的行有选择性地“连接”在主表结果集上。
+>   
+>   - 内连接查询：只返回A集合与B集合中同时存的行数据（指的是条件），由于`students`表的`class_id`包含1，2，3，`classes`表的`id`包含1，2，3，4，所以，INNER JOIN根据条件`s.class_id = c.id`返回的结果集仅包含1，2，3。
+>   
+>   - 外连接查询：
+>     
+>     - 左外连接查询：返回左表都存在的行。右表不存在的数据填充`NULL`
+>     
+>     - 右外连接查询：返回右表都存在的行。左表不存在的数据填充`NULL`
+> 
+> - 子查询
+
+### 连接查询 --- 内连接查询（常用）
+
+**语法**
+
+1. 显式内连接
    
+   ```sql
+   select 字段列表 from 表1 [inner] join 表2 on 连接条件;
    
+   # 例
+   select s.id s.name c.name class_name s.gender s.score from student s inner join classes c on s.class_id=c.id;
+   ```
    
+   **结果**
    
+   | id  | name | class_id | class_name | gender | score |
+   | --- | ---- | -------- | ---------- | ------ | ----- |
+   | 1   | 小明   | 1        | 一班         | M      | 90    |
+   | 2   | 小红   | 1        | 一班         | F      | 95    |
+   | 3   | 小军   | 1        | 一班         | M      | 88    |
+   | 4   | 小米   | 1        | 一班         | F      | 73    |
+   | 5   | 小白   | 2        | 二班         | F      | 81    |
+   | 6   | 小兵   | 2        | 二班         | M      | 55    |
+   | 7   | 小林   | 2        | 二班         | M      | 85    |
+   | 8   | 小新   | 3        | 三班         | F      | 91    |
+   | 9   | 小王   | 3        | 三班         | M      | 89    |
+   | 10  | 小丽   | 3        | 三班         | F      | 88    |
+
+2. 隐式内连接（不推荐，使用上面的）
    
-   
+   ```sql
+   select 字段列表 from 表1, 表2 where 条件;
+   ```
+
+### 连接查询 --- 外连接查询
+
+#### 左外连接查询
+
+**语法**
+
+```sql
+select 字段列表 from 表1 left [outer] join 表2 on 条件;
+
+# 例
+select s.id s.name c.name class_name s.gender s.score from student s left outer join classes c on s.class_id=c.id;
+```
+
+**结果**
+
+> classes表并不存在`id=5`的行而student表中有`class_id=5`，student表在左边，所以以student表为主，对于classes表中没有的数据以`NULL`填充
+
+| id  | name | class_id | class_name | gender | score |
+| --- | ---- | -------- | ---------- | ------ | ----- |
+| 1   | 小明   | 1        | 一班         | M      | 90    |
+| 2   | 小红   | 1        | 一班         | F      | 95    |
+| 3   | 小军   | 1        | 一班         | M      | 88    |
+| 4   | 小米   | 1        | 一班         | F      | 73    |
+| 5   | 小白   | 2        | 二班         | F      | 81    |
+| 6   | 小兵   | 2        | 二班         | M      | 55    |
+| 7   | 小林   | 2        | 二班         | M      | 85    |
+| 8   | 小新   | 3        | 三班         | F      | 91    |
+| 9   | 小王   | 3        | 三班         | M      | 89    |
+| 10  | 小丽   | 3        | 三班         | F      | 88    |
+| 11  | 新生   | 5        | NULL       | M      | 88    |
+
+#### 右外连接查询
+
+**语法**
+
+```sql
+select 字段列表 from 表1 right [outer] join 表2 on 条件;
+
+# 例
+select s.id s.name c.name class_name s.gender s.score from student s right outer join classes c on s.class_id=c.id;
+```
+
+**结果**
+
+> classes表中的id为1、2、3、4，student表中的class_id为1、2、3、5，classes表在右边以classes表为主，所以结果为：1、2、3、4。左边中不存在的数据以`NULL`填充
+
+| id   | name | class_id | class_name | gender | score |
+| ---- | ---- | -------- | ---------- | ------ | ----- |
+| 1    | 小明   | 1        | 一班         | M      | 90    |
+| 2    | 小红   | 1        | 一班         | F      | 95    |
+| 3    | 小军   | 1        | 一班         | M      | 88    |
+| 4    | 小米   | 1        | 一班         | F      | 73    |
+| 5    | 小白   | 2        | 二班         | F      | 81    |
+| 6    | 小兵   | 2        | 二班         | M      | 55    |
+| 7    | 小林   | 2        | 二班         | M      | 85    |
+| 8    | 小新   | 3        | 三班         | F      | 91    |
+| 9    | 小王   | 3        | 三班         | M      | 89    |
+| 10   | 小丽   | 3        | 三班         | F      | 88    |
+| NULL | NULL | NULL     | 四班         | NULL   | NULL  |
+
+### 子查询
+
+> 概念：在sql语句中嵌套一个sql语句，被称为嵌套查询或者子查询
+> 
+> 下面是一个简单例子
+
+```sql
+select * from student s where s.class_id = (select id from classes);
+```
+
+> 根据子查询结果不同，分为：
+> 
+> - 标量子查询：子查询结果为单个值（单行单列）
+> 
+> - 列子查询：子查询结果为一列（可以多行）
+> 
+> - 行子查询：子查询结果为一行（单行多列）
+> 
+> - 表子查询：子查询结果为多行多列
+
+> 常用的操作符：`in`、`not int`、`any`、`some`、`all`
+
+| 操作符    | 描述                 |
+| ------ | ------------------ |
+| in     | 在指定范围内，多选一         |
+| not in | 不在指定的集合范围内         |
+| any    | 子查询返回列表中，有任意一个满足即可 |
+| some   | 与any等同             |
+| all    | 子查询返回列表的所有值都必须满足   |
+
+## 事务
+
+
 
 ## 索引
 
@@ -1048,3 +1196,5 @@ create index idx_user_phone_age on t_user(age asc,phone desc);
 ## 视图
 
 > 介绍：视图（view）是一种虚拟存在的表。视图中的数据并不在数据库中实际存在，行和列数据来自定义视图的查询中使用的表，并且是在使用视图时动态生成的。
+
+

@@ -5,6 +5,8 @@
 1. `@PostConstruct`: Java的标准注解，在 Spring 完成依赖注入后，自动执行初始化方法
 2. ## Function接口
 
+# 面向对象基础
+
 ## 方法
 
 ### 可变参数
@@ -139,9 +141,97 @@ public interface Person {
 
 ## classpath和jar
 
-`classpath`是JVM用到的一个环境变量，它用来指示JVM如何搜索`.class`文件。
+### classpath
 
-## 异常处理
+> `classpath`是JVM用到的一个环境变量，它用来指示JVM如何搜索`.class`文件。
+> 
+> 因为Java是编译型语言，源码文件是`.java`，而编译后的`.class`文件才是真正可以被JVM执行的字节码。因此，当`.class`文件不在当前目录时，jvm需要知道去哪里寻找。
+> 
+> 所以，`classpath`就是一组目录的集合，它设置的搜索路径与操作系统相关。
+
+```textile
+例如，在Windows系统上，用;分隔，带空格的目录用""括起来，可能长这样：
+C:\work\project1\bin;C:\shared;"D:\My Documents\project1\bin"
+
+在Linux系统上，用:分隔，可能长这样:
+/usr/shared:/usr/local/bin:/home/liaoxuefeng/bin
+```
+
+> 现在我们假设`classpath`是`.;C:\work\project1\bin;C:\shared`，当JVM在加载`abc.xyz.Hello`这个类时，会依次查找：
+> 
+> * <当前目录>\abc\xyz\Hello.class
+> * C:\work\project1\bin\abc\xyz\Hello.class
+> * C:\shared\abc\xyz\Hello.class
+> 
+> 注意到`.`代表当前目录。如果JVM在某个路径下找到了对应的`class`文件，就不再往后继续搜索。如果所有路径下都没有找到，就报错。
+
+> `classpath`的设定方法有两种：
+> 
+> - 在系统环境变量中设置`classpath`环境变量，不推荐；
+> 
+> - 在启动JVM时设置`classpath`变量，推荐。
+>   
+>   ```shell
+>   # 前面那个是classpath，后面那个是字节码文件名
+>   java -classpath .;C:\work\project1\bin;C:\shared abc.xyz.Hello
+>   
+>   # 简写使用 -cp 
+>   java -cp .;C:\work\project1\bin;C:\shared abc.xyz.Hello
+>   ```
+
+> 没有设置系统环境变量，也没有传入`-cp`参数，那么JVM默认的`classpath`为`.`
+> 
+> ```shell
+> java abc.xyz.Hello
+> ```
+
+> <mark>不要把任何Java核心库添加到classpath中！JVM根本不依赖classpath加载核心库！</mark>
+
+### jar包
+
+> jar包就是用来干这个事的，它可以把`package`组织的目录层级，以及各个目录下的所有文件（包括`.class`文件和其他文件）都打成一个jar文件。
+> 
+> jar包实际上就是一个zip格式的压缩文件，而jar包相当于目录。如果我们要执行一个jar包的`class`，就可以把jar包放到`classpath`中：
+> 
+> ```shell
+> java -cp ./hello.jar abc.xyz.Hello
+> ```
+> 
+> 这样JVM会自动在`hello.jar`文件里去搜索某个类。
+
+> 如何创建jar包？
+> 
+> 因为jar包就是zip包，所以，直接在资源管理器中，找到正确的目录，点击右键，在弹出的快捷菜单中选择“发送到”，“压缩(zipped)文件夹”，就制作了一个zip文件。然后，把后缀从`.zip`改为`.jar`，一个jar包就创建成功。
+
+```textile
+在下面的目录结构上单击bin右键创建jar包
+bin
+├─ hong
+│  └─ Person.class
+│  ming
+│  └─ Person.class
+└─ mr
+   └─ jun
+      └─ Arrays.class
+```
+
+
+
+> jar包还可以包含一个特殊的`/META-INF/MANIFEST.MF`文件，`MANIFEST.MF`是纯文本，可以指定`Main-Class`和其它信息。JVM会自动读取这个`MANIFEST.MF`文件，如果存在`Main-Class`，我们就不必在命令行指定启动的类名，而是用更方便的命令：
+> 
+> ```shell
+> java -jar hello.jar
+> ```
+> 
+> 大型项目中，不可能手动编写`MANIFEST.MF`文件，再手动创建jar包。Java社区提供了大量的开源构建工具，例如Maven，可以非常方便地创建jar包。
+
+
+
+
+
+
+
+# 异常处理
 
 ### 断言
 
@@ -165,11 +255,2353 @@ assert x >= 0 : "x must >= 0";
 
 这样，断言失败的时候，AssertionError会带上消息x must >= 0，更加便于调试。
 
-Java断言的特点是：断言失败时会抛出AssertionError，导致程序结束退出。==因此，断言不能用于可恢复的程序错误，只应该用于开发和测试阶段。==
+Java断言的特点是：断言失败时会抛出AssertionError，导致程序结束退出。<mark>因此，断言不能用于可恢复的程序错误，只应该用于开发和测试阶段。</mark>
 
-## 多线程
+# 反射
 
-### 多线程基础--概念相关
+> 反射就是Reflection，Java的反射是指程序在运行期可以拿到一个对象的所有信息。
+> 
+> 反射是为了解决在运行期，对某个实例一无所知的情况下，如何调用其方法。
+
+## Class类
+
+> 除了`int`等基本类型外，Java的其他类型全部都是`class`（包括`interface`）。例如：
+> 
+> * `String`
+> * `Object`
+> * `Runnable`
+> * `Exception`
+> * ...
+> 
+> 仔细思考，我们可以得出结论：`class`（包括`interface`）的本质是数据类型（`Type`）。无继承关系的数据类型无法赋值：
+
+```java
+Number n = new Double(123.456); // OK
+String s = new Double(123.456); // compile error!
+```
+
+> 而`class`是由JVM在执行过程中动态加载的。JVM在第一次读取到一种`class`类型时，将其加载进内存。
+> 
+> 每加载一种`class`，JVM就为其创建一个`Class`类型的实例，并关联起来。注意：这里的`Class`类型是一个名叫`Class`的`class`。它长这样：
+
+```java
+public final class Class {
+    private Class() {}
+}
+```
+
+> 以`String`类为例，当JVM加载`String`类时，它首先读取`String.class`文件到内存，然后，为`String`类创建一个`Class`实例并关联起来：
+
+```java
+Class cls = new Class(String);
+```
+
+> 这个`Class`实例是JVM内部创建的，如果我们查看JDK源码，可以发现`Class`类的构造方法是`private`，只有JVM能创建`Class`实例。
+> 
+> 所以，JVM持有的每个`Class`实例都指向一个数据类型（`class`或`interface`）
+> 
+> 一个`Class`实例包含了该`class`的所有完整信息：
+
+```textile
+┌───────────────────────────┐
+│      Class Instance       │────▶ String
+├───────────────────────────┤
+│name = "java.lang.String"  │
+├───────────────────────────┤
+│package = "java.lang"      │
+├───────────────────────────┤
+│super = "java.lang.Object" │
+├───────────────────────────┤
+│interface = CharSequence...│
+├───────────────────────────┤
+│field = value[],hash,...   │
+├───────────────────────────┤
+│method = indexOf()...      │
+└───────────────────────────┘
+```
+
+> 由于JVM为每个加载的`class`创建了对应的`Class`实例，并在实例中保存了该`class`的所有信息，包括类名、包名、父类、实现的接口、所有方法、字段等，因此，如果获取了某个`Class`实例，我们就可以通过这个`Class`实例获取到该实例对应的`class`的所有信息。
+> 
+> <mark>这种通过Class实例获取class信息的方法称为反射（Reflection）。</mark>
+
+**获取Class实例的方法**
+
+> 方法一：直接通过一个`class`的静态变量`class`获取：
+
+```java
+Class cls = String.class;
+```
+
+> 方法二：如果我们有一个实例变量，可以通过该实例变量提供的`getClass()`方法获取：
+
+```java
+String s = "Hello";
+Class cls = s.getClass();
+```
+
+> 方法三：如果知道一个`class`的完整类名，可以通过静态方法`Class.forName()`获取：
+
+```java
+Class cls = Class.forName("java.lang.String");
+```
+
+> 因为`Class`实例在JVM中是唯一的，所以，上述方法获取的`Class`实例是同一个实例。可以用`==`比较两个`Class`实例：
+
+```java
+Class cls1 = String.class;
+
+String s = "Hello";
+Class cls2 = s.getClass();
+
+boolean sameClass = cls1 == cls2; // true
+```
+
+> 如果获取到了一个`Class`实例，我们就可以通过该`Class`实例来创建对应类型的实例：
+
+```java
+// 获取String的Class实例:
+Class cls = String.class;
+// 创建一个String实例:
+String s = (String) cls.newInstance();
+```
+
+> 上述代码相当于`new String()`。通过`Class.newInstance()`可以创建类实例，它的局限是：只能调用`public`的无参数构造方法。带参数的构造方法，或者非`public`的构造方法都无法通过`Class.newInstance()`被调用。
+
+**动态加载**
+
+> JVM在执行Java程序的时候，并不是一次性把所有用到的class全部加载到内存，而是第一次需要用到class时才加载。例如：
+
+```java
+// Main.java
+public class Main {
+    public static void main(String[] args) {
+        if (args.length > 0) {
+            create(args[0]);
+        }
+    }
+
+    static void create(String name) {
+        Person p = new Person(name);
+    }
+}
+```
+
+> 当执行`Main.java`时，由于用到了`Main`，因此，JVM首先会把`Main.class`加载到内存。然而，并不会加载`Person.class`，除非程序执行到`create()`方法，JVM发现需要加载`Person`类时，才会首次加载`Person.class`。如果没有执行`create()`方法，那么`Person.class`根本就不会被加载。
+
+> 动态加载`class`的特性对于Java程序非常重要。利用JVM动态加载`class`的特性，我们才能在运行期根据条件加载不同的实现类。例如，Commons Logging总是优先使用Log4j，只有当Log4j不存在时，才使用JDK的logging。利用JVM动态加载特性，大致的实现代码如下：
+
+```java
+// Commons Logging优先使用Log4j:
+LogFactory factory = null;
+if (isClassPresent("org.apache.logging.log4j.Logger")) {
+    factory = createLog4j();
+} else {
+    factory = createJdkLog();
+}
+
+boolean isClassPresent(String name) {
+    try {
+        Class.forName(name);
+        return true;
+    } catch (Exception e) {
+        return false;
+    }
+}
+```
+
+## 访问字段(Field)
+
+> 对任意的一个`Object`实例，只要我们获取了它的`Class`，就可以获取它的一切信息。
+> 
+> 如何通过`Class`实例获取字段信息。`Class`类提供了以下几个方法来获取字段：
+> 
+> * Field getField(name)：根据字段名获取某个public的field（包括父类）
+> * Field getDeclaredField(name)：根据字段名获取当前类的某个field（不包括父类）
+> * Field[] getFields()：获取所有public的field（包括父类）
+> * Field[] getDeclaredFields()：获取当前类的所有field（不包括父类）
+
+**示例代码**
+
+```java
+// reflection
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class stdClass = Student.class;
+        // 获取public字段"score":
+        System.out.println(stdClass.getField("score"));
+        // 获取继承的public字段"name":
+        System.out.println(stdClass.getField("name"));
+        // 获取private字段"grade":
+        System.out.println(stdClass.getDeclaredField("grade"));
+    }
+}
+
+class Student extends Person {
+    public int score;
+    private int grade;
+}
+
+class Person {
+    public String name;
+}
+```
+
+### Field对象
+
+> 一个`Field`对象包含了一个字段的所有信息：
+> 
+> * `getName()`：返回字段名称，例如，`"name"`；
+> * `getType()`：返回字段类型，也是一个`Class`实例，例如，`String.class`；
+> * `getModifiers()`：返回字段的修饰符，它是一个`int`，不同的bit表示不同的含义。
+
+> 以`String`类的`value`字段为例，它的定义是：
+
+```java
+public final class String {
+    private final byte[] value;
+}
+```
+
+> 用反射获取该字段的信息，代码如下：
+
+```java
+Field f = String.class.getDeclaredField("value");
+f.getName(); // "value"
+f.getType(); // class [B 表示byte[]类型
+int m = f.getModifiers();
+Modifier.isFinal(m); // true
+Modifier.isPublic(m); // false
+Modifier.isProtected(m); // false
+Modifier.isPrivate(m); // true
+Modifier.isStatic(m); // false
+```
+
+### 获取字段值
+
+> 获取字段值是通过`Field.get(实例对象)`方法获取的
+> 
+> 对于一个`Person`实例，我们可以先拿到`name`字段对应的`Field`，再获取这个实例的`name`字段的值：
+
+```java
+// reflection
+import java.lang.reflect.Field;
+public class Main {
+
+    public static void main(String[] args) throws Exception {
+        Object p = new Person("Xiao Ming");
+        Class c = p.getClass();
+        Field f = c.getDeclaredField("name");
+        // 需要把实例对象传递进去，以确定是哪个对象
+        Object value = f.get(p);    // ❌，字段为private
+        System.out.println(value); // "Xiao Ming"
+    }
+}
+
+class Person {
+    private String name;
+
+    public Person(String name) {
+        this.name = name;
+    }
+}
+```
+
+> 上述代码先获取`Class`实例，再获取`Field`实例，然后，用`Field.get(Object)`获取指定实例的指定字段的值。
+> 
+> 运行代码，如果不出意外，会得到一个`IllegalAccessException`，这是因为`name`被定义为一个`private`字段，正常情况下，`Main`类无法访问`Person`类的`private`字段。要修复错误，可以将`private`改为`public`，或者，在调用`Object value = f.get(p);`前，先写一句：
+
+```java
+f.setAccessible(true);
+```
+
+> 调用`Field.setAccessible(true)`的意思是，别管这个字段是不是`public`，一律允许访问。
+
+### 设置字段值
+
+> 设置字段值是通过`Field.set(Object, Object)`实现的，其中第一个`Object`参数是指定的实例，第二个`Object`参数是待修改的值。示例代码如下：
+
+```java
+// reflection
+import java.lang.reflect.Field;
+
+public class Main {
+
+    public static void main(String[] args) throws Exception {
+        Person p = new Person("Xiao Ming");
+        System.out.println(p.getName()); // "Xiao Ming"
+        Class c = p.getClass();
+        Field f = c.getDeclaredField("name");
+        f.setAccessible(true);
+        f.set(p, "Xiao Hong");
+        System.out.println(p.getName()); // "Xiao Hong"
+    }
+}
+
+class Person {
+    private String name;
+
+    public Person(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+}
+```
+
+## 调用方法
+
+> 能通过`Class`实例获取所有`Field`对象，同样的，可以通过`Class`实例获取所有`Method`信息。
+> 
+> `Class`类提供了以下几个方法来获取`Method`：
+> 
+> * `Method getMethod(name, Class...)`：获取某个`public`的`Method`（包括父类）
+> * `Method getDeclaredMethod(name, Class...)`：获取当前类的某个`Method`（不包括父类）
+> * `Method[] getMethods()`：获取所有`public`的`Method`（包括父类）
+> * `Method[] getDeclaredMethods()`：获取当前类的所有`Method`（不包括父类）
+
+**示例代码**
+
+```java
+// reflection
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class stdClass = Student.class;
+        // 获取public方法getScore，参数为String:
+        System.out.println(stdClass.getMethod("getScore", String.class));
+        // 获取继承的public方法getName，无参数:
+        System.out.println(stdClass.getMethod("getName"));
+        // 获取private方法getGrade，参数为int:
+        System.out.println(stdClass.getDeclaredMethod("getGrade", int.class));
+    }
+}
+
+class Student extends Person {
+    public int getScore(String type) {
+        return 99;
+    }
+    private int getGrade(int year) {
+        return 1;
+    }
+}
+
+class Person {
+    public String getName() {
+        return "Person";
+    }
+}
+```
+
+### Method对象
+
+> 一个`Method`对象包含一个方法的所有信息：
+> 
+> * `getName()`：返回方法名称，例如：`"getScore"`；
+> * `getReturnType()`：返回方法返回值类型，也是一个Class实例，例如：`String.class`；
+> * `getParameterTypes()`：返回方法的参数类型，是一个Class数组，例如：`{String.class, int.class}`；
+> * `getModifiers()`：返回方法的修饰符，它是一个`int`，不同的bit表示不同的含义。
+
+### 调用方法
+
+> 对`Method`实例调用`invoke`就相当于调用该方法，`invoke`的第一个参数是对象实例，即在哪个实例上调用该方法，后面的可变参数要与方法参数一致，否则将报错。
+
+> 用反射来调用`String`的`substring`方法，需要以下代码：
+
+```java
+// reflection
+import java.lang.reflect.Method;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // String对象:
+        String s = "Hello world";
+        // 获取String substring(int)方法，参数为int:
+        Method m = String.class.getMethod("substring", int.class);
+        // 在s对象上调用该方法并获取结果:
+        String r = (String) m.invoke(s, 6);
+        // 打印调用结果:
+        System.out.println(r); // "world"
+    }
+}
+```
+
+### 调用静态方法
+
+> 如果获取到的Method表示一个静态方法，调用静态方法时，由于无需指定实例对象，所以`invoke`方法传入的第一个参数永远为`null`。我们以`Integer.parseInt(String)`为例：
+
+```java
+// reflection
+import java.lang.reflect.Method;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // 获取Integer.parseInt(String)方法，参数为String:
+        Method m = Integer.class.getMethod("parseInt", String.class);
+        // 调用该静态方法并获取结果:
+        Integer n = (Integer) m.invoke(null, "12345");
+        // 打印调用结果:
+        System.out.println(n);
+    }
+}
+
+```
+
+### 调用非public方法
+
+> 和Field类似，对于非public方法，我们虽然可以通过`Class.getDeclaredMethod()`获取该方法实例，但直接对其调用将得到一个`IllegalAccessException`。为了调用非public方法，我们通过`Method.setAccessible(true)`允许其调用：
+
+```java
+// reflection
+import java.lang.reflect.Method;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Person p = new Person();
+        Method m = p.getClass().getDeclaredMethod("setName", String.class);
+        m.setAccessible(true);
+        m.invoke(p, "Bob");
+        System.out.println(p.name);
+    }
+}
+
+class Person {
+    String name;
+    private void setName(String name) {
+        this.name = name;
+    }
+}
+
+```
+
+> 此外，`setAccessible(true)`可能会失败。如果JVM运行期存在`SecurityManager`，那么它会根据规则进行检查，有可能阻止`setAccessible(true)`。
+
+### 反射调用方法符合多态
+
+> 一个`Person`类定义了`hello()`方法，并且它的子类`Student`也覆写了`hello()`方法，那么，从`Person.class`获取的`Method`，作用于`Student`实例时，调用的方法到底是哪个？
+
+```java
+// reflection
+import java.lang.reflect.Method;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // 获取Person的hello方法:
+        Method h = Person.class.getMethod("hello");
+        // 对Student实例调用hello方法:
+        h.invoke(new Student());
+    }
+}
+
+class Person {
+    public void hello() {
+        System.out.println("Person:hello");
+    }
+}
+
+class Student extends Person {
+    public void hello() {
+        System.out.println("Student:hello");
+    }
+}
+
+```
+
+> 运行上述代码，发现打印出的是`Student:hello`
+
+> <mark>使用反射调用方法时，仍然遵循多态原则：即总是调用实际类型的覆写方法（如果存在）。</mark>
+
+## 调用构造方法
+
+> 如果通过反射来创建新的实例，可以调用Class提供的newInstance()方法：
+
+```java
+Person p = Person.class.newInstance();
+```
+
+> 调用`Class.newInstance()`的局限是，它只能调用该类的public无参数构造方法。如果构造方法带有参数，或者不是public，就无法直接通过`Class.newInstance()`来调用。
+
+### Constructor对象
+
+> 为了调用任意的构造方法，Java的反射API提供了`Constructor`对象，它包含一个构造方法的所有信息，可以创建一个实例。
+> 
+> 通过Class实例获取Constructor的方法如下：
+> 
+> * `getConstructor(Class...)`：获取某个`public`的`Constructor`；
+> * `getDeclaredConstructor(Class...)`：获取某个`Constructor`；
+> * `getConstructors()`：获取所有`public`的`Constructor`；
+> * `getDeclaredConstructors()`：获取所有`Constructor`。
+
+```java
+import java.lang.reflect.Constructor;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // 获取构造方法Integer(int):
+        Constructor cons1 = Integer.class.getConstructor(int.class);
+        // 调用构造方法:
+        Integer n1 = (Integer) cons1.newInstance(123);
+        System.out.println(n1);
+
+        // 获取构造方法Integer(String)
+        Constructor cons2 = Integer.class.getConstructor(String.class);
+        Integer n2 = (Integer) cons2.newInstance("456");
+        System.out.println(n2);
+    }
+}
+```
+
+> <mark>注意Constructor总是当前类定义的构造方法，和父类无关，因此不存在多态的问题。</mark>
+
+> 调用非`public`的`Constructor`时，必须首先通过`setAccessible(true)`设置允许访问。`setAccessible(true)`可能会失败。
+
+## 获取继承关系
+
+### 获取父类的Class
+
+> 有了`Class`实例，还可以通过`getSuperclass`来获取它的父类的`Class`：
+
+```java
+// reflection
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class i = Integer.class;
+        Class n = i.getSuperclass();
+        System.out.println(n);
+        Class o = n.getSuperclass();
+        System.out.println(o);
+        System.out.println(o.getSuperclass());
+    }
+}
+```
+
+> 可以看到，`Integer`的父类类型是`Number`，`Number`的父类是`Object`，`Object`的父类是`null`。除`Object`外，其他任何非`interface`的`Class`都必定存在一个父类类型。
+
+### 获取interface
+
+> 由于一个类可能实现一个或多个接口，通过`Class`可以用`getInterfaces()`来查询到实现的接口类型。
+> 
+> 例如，查询`Integer`实现的接口：
+
+```java
+// reflection
+import java.lang.reflect.Method;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class s = Integer.class;
+        Class[] is = s.getInterfaces();
+        for (Class i : is) {
+            System.out.println(i);
+        }
+    }
+}
+```
+
+> <mark>要特别注意：getInterfaces()只返回当前类直接实现的接口类型，并不包括其父类实现的接口类型</mark>
+> 
+> 如果一个类没有实现任何`interface`，那么`getInterfaces()`返回空数组。
+
+### 继承关系
+
+> 当我们判断一个实例是否是某个类型时，正常情况下，使用`instanceof`操作符：
+
+```java
+Object n = Integer.valueOf(123);
+boolean isDouble = n instanceof Double; // false
+boolean isInteger = n instanceof Integer; // true
+boolean isNumber = n instanceof Number; // true
+boolean isSerializable = n instanceof java.io.Serializable; // true
+```
+
+> 如果是两个`Class`实例，要判断一个向上转型是否成立，可以调用`isAssignableFrom()`：
+
+```java
+// Integer i = ?
+Integer.class.isAssignableFrom(Integer.class); // true，因为Integer可以赋值给Integer
+// Number n = ?
+Number.class.isAssignableFrom(Integer.class); // true，因为Integer可以赋值给Number
+// Object o = ?
+Object.class.isAssignableFrom(Integer.class); // true，因为Integer可以赋值给Object
+// Integer i = ?
+Integer.class.isAssignableFrom(Number.class); // false，因为Number不能赋值给Integer
+```
+
+## 动态代理
+
+> 来比较Java的`class`和`interface`的区别：
+> 
+> * 可以实例化`class`（非`abstract`）；
+> * 不能实例化`interface`。
+
+> 有没有可能不编写实现类，直接在运行期创建某个`interface`的实例呢？
+> 
+> 这是可能的，因为Java标准库提供了一种动态代理（Dynamic Proxy）的机制：可以在运行期动态创建某个`interface`的实例。
+
+**正常情况：实现接口并调用实现类**
+
+```java
+// 定义接口
+public interface Hello {
+    void morning(String name);
+}
+
+// 实现类
+public class HelloWorld implements Hello {
+    public void morning(String name) {
+        System.out.println("Good morning, " + name);
+    }
+}
+
+// 创建实例并调用
+Hello hello = new HelloWorld();
+hello.morning("Bob");
+```
+
+**动态代理创建实现类**
+
+> 在运行期动态创建一个`interface`实例的方法如下：
+> 
+> 1. 定义一个`InvocationHandler`实例，它负责实现接口的方法调用；
+> 2. 通过`Proxy.newProxyInstance()`创建`interface`实例，它需要3个参数：
+>    1. 使用的`ClassLoader`，通常就是接口类的`ClassLoader`；
+>    2. 需要实现的接口数组，至少需要传入一个接口进去；
+>    3. 用来处理接口方法调用的`InvocationHandler`实例。
+> 3. 将返回的`Object`强制转型为接口。
+
+```java
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class Main {
+    public static void main(String[] args) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                System.out.println(method);
+                if (method.getName().equals("morning")) {
+                    System.out.println("Good morning, " + args[0]);
+                }
+                return null;
+            }
+        };
+        Hello hello = (Hello) Proxy.newProxyInstance(
+            Hello.class.getClassLoader(), // 传入ClassLoader
+            new Class[] { Hello.class }, // 传入要实现的接口
+            handler); // 传入处理调用方法的InvocationHandler
+        hello.morning("Bob");
+    }
+}
+
+interface Hello {
+    void morning(String name);
+}
+```
+
+# 注解
+
+> 注解（Annotation）是放在Java源码的类、方法、字段、参数前的一种特殊“注释”。
+
+**例子**
+
+```java
+// this is a component:
+@Resource("hello")
+public class Hello {
+    @Inject
+    int n;
+
+    @PostConstruct
+    public void hello(@Param String name) {
+        System.out.println(name);
+    }
+
+    @Override
+    public String toString() {
+        return "Hello";
+    }
+}
+```
+
+> 注释会被编译器直接忽略，注解则可以被编译器打包进入class文件，因此，注解是一种用作标注的“元数据”。
+
+**注解的作用**
+
+> Java的注解可以分为三类：
+> 
+> - 第一类是由编译器使用的注解，例如：
+>   
+>   - `@Override`：让编译器检查该方法是否正确地实现了覆写；
+>   
+>   - `@SuppressWarnings`：告诉编译器忽略此处代码产生的警告。
+>   
+>   这类注解不会被编译进入`.class`文件，它们在编译后就被编译器扔掉了。
+> 
+> - 第二类是由工具处理`.class`文件使用的注解，比如有些工具会在加载class的时候，对class做动态修改，实现一些特殊的功能。这类注解会被编译进入`.class`文件，但加载结束后并不会存在于内存中。这类注解只被一些底层库使用，一般我们不必自己处理。
+> 
+> - 第三类是在程序运行期能够读取的注解，它们在加载后一直存在于JVM中，这也是最常用的注解。例如，一个配置了`@PostConstruct`的方法会在调用构造方法后自动被调用（这是Java代码读取该注解实现的功能，JVM并不会识别该注解）。
+
+**注解的参数**
+
+> 定义一个注解时，还可以定义配置参数。配置参数可以包括：
+> 
+> * 所有基本类型；
+> * String；
+> * 枚举类型；
+> * 基本类型、String、Class以及枚举的数组。
+> 
+> 因为<mark>配置参数必须是常量</mark>，所以，上述限制保证了注解在定义时就已经确定了每个参数的值。
+> 
+> 注解的配置参数可以有默认值，缺少某个配置参数时将使用默认值。
+> 
+> 此外，大部分注解会有一个名为`value`的配置参数，对此参数赋值，可以只写常量，相当于省略了value参数。
+> 
+> 如果只写注解，相当于全部使用默认值。
+
+```java
+public class Hello {
+    @Check(min=0, max=100, value=55)
+    public int n;
+
+    @Check(value=99)
+    public int p;
+
+    @Check(99) // @Check(value=99)
+    public int x;
+
+    @Check
+    public int y;
+}
+```
+
+## 定义注解
+
+> Java语言使用`@interface`语法来定义注解（`Annotation`），它的格式如下：
+
+```java
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+```
+
+> 注解的参数类似无参数方法，可以用`default`设定一个默认值（强烈推荐）。最常用的参数应当命名为`value`。
+
+### 元注解
+
+> 有一些注解可以修饰其他注解，这些注解就称为元注解（meta annotation）。Java标准库已经定义了一些元注解，我们只需要使用元注解，通常不需要自己去编写元注解。
+> 
+> - @Target
+> 
+> - @Retention
+> 
+> - @Repeatable
+> 
+> - @Inherited
+
+#### @Target
+
+> 最常用的元注解是`@Target`。使用`@Target`可以定义`Annotation`能够被应用于源码的哪些位置：
+> 
+> * 类或接口：`ElementType.TYPE`；
+> * 字段：`ElementType.FIELD`；
+> * 方法：`ElementType.METHOD`；
+> * 构造方法：`ElementType.CONSTRUCTOR`；
+> * 方法参数：`ElementType.PARAMETER`
+> 
+> 例如，定义注解`@Report`可用在方法上，我们必须添加一个`@Target(ElementType.METHOD)`：
+
+```java
+@Target(ElementType.METHOD)
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+```
+
+> 定义注解`@Report`可用在方法或字段上，可以把`@Target`注解参数变为数组`{ ElementType.METHOD, ElementType.FIELD }`：
+
+```java
+@Target({
+    ElementType.METHOD,
+    ElementType.FIELD
+})
+public @interface Report {
+    ...
+}
+```
+
+> 实际上`@Target`定义的`value`是`ElementType[]`数组，只有一个元素时，可以省略数组的写法。
+
+#### @Retention
+
+> 元注解`@Retention`定义了`Annotation`的生命周期：
+> 
+> * 仅编译期：`RetentionPolicy.SOURCE`；
+> * 仅class文件：`RetentionPolicy.CLASS`；
+> * 运行期：`RetentionPolicy.RUNTIME`。
+> 
+> 如果`@Retention`不存在，则该`Annotation`默认为`CLASS`。因为通常我们自定义的`Annotation`都是`RUNTIME`，所以，务必要加上`@Retention(RetentionPolicy.RUNTIME)`这个元注解：
+
+```java
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+```
+
+#### @Repeatable
+
+> 使用`@Repeatable`这个元注解可以定义`Annotation`是否可重复。
+> 
+> 经过`@Repeatable`修饰后，在某个类型声明处，就可以添加多个`@Report`注解。
+
+```java
+@Repeatable(Reports.class)
+@Target(ElementType.TYPE)
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+
+@Target(ElementType.TYPE)
+public @interface Reports {
+    Report[] value();
+}
+// 重复使用
+@Report(type=1, level="debug")
+@Report(type=2, level="warning")
+public class Hello {
+}
+```
+
+#### @Inherited
+
+> 使用`@Inherited`定义子类是否可继承父类定义的`Annotation`。`@Inherited`仅针对`@Target(ElementType.TYPE)`类型的`annotation`有效，并且仅针对`class`的继承，对`interface`的继承无效：
+
+```java
+@Inherited
+@Target(ElementType.TYPE)
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+```
+
+### 如何定义Annotation
+
+**第一步，用`@interface`定义注解：**
+
+```java
+public @interface Report {
+}
+```
+
+**第二步，添加参数、默认值：**
+
+> 把最常用的参数定义为`value()`，推荐所有参数都尽量设置默认值。
+
+```java
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+```
+
+**第三步，用元注解配置注解：**
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Report {
+    int type() default 0;
+    String level() default "info";
+    String value() default "";
+}
+```
+
+## 处理注解
+
+> Java的注解本身对代码逻辑没有任何影响。所以我们需要编写一个段处理代码，根据注解的参数或注解本身的不同来进行特定的操作。
+> 
+> 下面只介绍如何读取`RUNTIME`类型的注解。
+
+> 因为注解定义后也是一种`class`，所有的注解都继承自`java.lang.annotation.Annotation`，因此，读取注解，需要使用反射API。
+> 
+> Java提供的使用反射API读取`Annotation`的方法包括：
+> 
+> 判断某个注解是否存在于`Class`、`Field`、`Method`或`Constructor`：
+> 
+> * Class.isAnnotationPresent(注解Class)
+> * Field.isAnnotationPresent(注解Class)
+> * Method.isAnnotationPresent(注解Class)
+> * Constructor.isAnnotationPresent(注解Class)
+
+**例子**
+
+```java
+// 判断@Report是否存在于Person类:
+Person.class.isAnnotationPresent(Report.class);
+```
+
+> 使用反射API读取Annotation：
+> 
+> * Class.getAnnotation(Class)
+> * Field.getAnnotation(Class)
+> * Method.getAnnotation(Class)
+> * Constructor.getAnnotation(Class)
+
+**例子**
+
+```java
+// 获取Person定义的@Report注解:
+Report report = Person.class.getAnnotation(Report.class);
+int type = report.type();
+String level = report.level();
+```
+
+> 使用反射API读取`Annotation`有两种方法。
+> 
+> 方法一是先判断`Annotation`是否存在，如果存在，就直接读取：
+
+```java
+Class cls = Person.class;
+if (cls.isAnnotationPresent(Report.class)) {
+    Report report = cls.getAnnotation(Report.class);
+    ...
+}
+```
+
+> 第二种方法是直接读取`Annotation`，如果`Annotation`不存在，将返回`null`：
+
+```java
+Class cls = Person.class;
+Report report = cls.getAnnotation(Report.class);
+if (report != null) {
+   ...
+}
+```
+
+> 读取方法、字段和构造方法的`Annotation`和Class类似。
+> 
+> 但要读取方法参数的`Annotation`就比较麻烦一点，因为方法参数本身可以看成一个数组，而每个参数又可以定义多个注解，所以，一次获取方法参数的所有注解就必须用一个二维数组来表示。例如，对于以下方法定义的注解：
+
+```java
+public void hello(@NotNull @Range(max=5) String name, @NotNull String prefix) {
+}
+```
+
+> 要读取方法参数的注解，我们先用反射获取`Method`实例，然后读取方法参数的所有注解：
+
+```java
+// 获取Method实例:
+Method m = ...
+// 获取所有参数的Annotation:
+Annotation[][] annos = m.getParameterAnnotations();
+// 第一个参数（索引为0）的所有Annotation:
+Annotation[] annosOfName = annos[0];
+for (Annotation anno : annosOfName) {
+    if (anno instanceof Range r) { // @Range注解
+        r.max();
+    }
+    if (anno instanceof NotNull n) { // @NotNull注解
+        //
+    }
+}
+```
+
+**注解案例**
+
+> 看一个`@Range`注解的定义和处理
+
+> `@Range`定义
+
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface Range {
+    int min() default 0;
+    int max() default 255;
+}
+```
+
+> 在某个类中使用：
+
+```java
+public class Person {
+    @Range(min=1, max=20)
+    public String name;
+
+    @Range(max=10)
+    public String city;
+}
+```
+
+> 编写代码来处理注解，这里编写一个`Person`实例的检查方法，它可以检查`Person`实例的`String`字段长度是否满足`@Range`的定义：
+
+```java
+void check(Person person) throws IllegalArgumentException, ReflectiveOperationException {
+    // 遍历所有Field:
+    for (Field field : person.getClass().getFields()) {
+        // 获取Field定义的@Range:
+        Range range = field.getAnnotation(Range.class);
+        // 如果@Range存在:
+        if (range != null) {
+            // 获取Field的值:
+            Object value = field.get(person);
+            // 如果值是String:
+            if (value instanceof String s) {
+                // 判断值是否满足@Range的min/max:
+                if (s.length() < range.min() || s.length() > range.max()) {
+                    throw new IllegalArgumentException("Invalid field: " + field.getName());
+                }
+            }
+        }
+    }
+}
+```
+
+# 集合
+
+> 集合像是数组的进阶版。
+> 
+> 数组有如下限制：
+> 
+> * 数组初始化后大小不可变；
+> * 数组只能按索引顺序存取。
+> 
+> 集合有如下特点：
+> 
+> * 可变大小的顺序链表；
+> * 保证无重复元素的集合；
+> * ...
+
+> Java标准库自带的`java.util`包提供了集合类：`Collection`，它是除`Map`外所有其他集合类的根接口。
+> 
+> Java的`java.util`包主要提供了以下三种类型的集合：
+> 
+> * `List`：一种有序列表的集合，例如，按索引排列的`Student`的`List`；
+> * `Set`：一种保证没有重复元素的集合，例如，所有无重复名称的`Student`的`Set`；
+> * `Map`：一种通过键值（key-value）查找的映射表集合，例如，根据`Student`的`name`查找对应`Student`的`Map`。
+
+## List
+
+> 在集合类中，`List`是最基础的一种集合：它是一种有序列表。
+> 
+> `List`的行为和数组几乎完全相同：`List`内部按照放入元素的先后顺序存放，每个元素都可以通过索引确定自己的位置，`List`的索引和数组一样，从`0`开始。
+
+
+
+> `List`是一个接口，它有几个主要的接口方法：
+> 
+> * 在末尾添加一个元素：`boolean add(E e)`
+> * 在指定索引添加一个元素：`boolean add(int index, E e)`
+> * 删除指定索引的元素：`E remove(int index)`
+> * 删除某个元素：`boolean remove(Object e)`
+> * 获取指定索引的元素：`E get(int index)`
+> * 获取链表大小（包含元素的个数）：`int size()`
+> 
+> `List`有两个实现：`ArrayList`和`LinkedList`
+
+| 操作         | ArrayList | LinkedList |
+| ---------- | --------- | ---------- |
+| 获取指定元素     | 速度很快      | 需要从头开始查找元素 |
+| 添加元素到末尾    | 速度很快      | 速度很快       |
+| 在指定位置添加/删除 | 需要移动元素    | 不需要移动元素    |
+| 内存占用       | 少         | 较大         |
+
+### ArrayList
+
+> `ArrayList`是`List`接口一个实现。`ArrayList`在内部使用了数组来存储所有元素。
+
+### LinkedList
+
+> 通过“链表”实现了List接口。在`LinkedList`中，它的内部每个元素都指向下一个元素：
+
+### List的特点
+
+> `List`接口允许我们添加重复的元素，即`List`内部的元素可以重复：
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<>();
+        list.add("apple"); // size=1
+        list.add("pear"); // size=2
+        list.add("apple"); // 允许重复添加元素，size=3
+        System.out.println(list.size());
+    }
+}
+```
+
+> `List`还允许添加`null`：
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<>();
+        list.add("apple"); // size=1
+        list.add(null); // size=2
+        list.add("pear"); // size=3
+        String second = list.get(1); // null
+        System.out.println(second);
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+## Collections工具类
+
+> `Collections`是JDK提供的工具类，同样位于`java.util`包中。它提供了一系列静态方法，能更方便地操作各种集合。
+
+### 创建空集合
+
+> 对于旧版的JDK，可以使用`Collections`提供的一系列方法来创建空集合：
+> 
+> * 创建空List：`List<T> emptyList()`
+> * 创建空Map：`Map<K, V> emptyMap()`
+> * 创建空Set：`Set<T> emptySet()`
+> 
+> <mark>要注意到返回的空集合是不可变集合，无法向其中添加或删除元素。</mark>
+> 
+> 新版的JDK≥9可以直接使用`List.of()`、`Map.of()`、`Set.of()`来创建空集合。
+
+### 创建单元素集合
+
+> 对于旧版的JDK，`Collections`提供了一系列方法来创建一个单元素集合：
+> 
+> * 创建一个元素的List：`List<T> singletonList(T o)`
+> * 创建一个元素的Map：`Map<K, V> singletonMap(K key, V value)`
+> * 创建一个元素的Set：`Set<T> singleton(T o)`
+> 
+> <mark>要注意到返回的单元素集合也是不可变集合，无法向其中添加或删除元素。</mark>
+> 
+> 新版的JDK≥9可以直接使用`List.of(T...)`、`Map.of(T...)`、`Set.of(T...)`来创建任意个元素的集合。
+
+### 排序
+
+> `Collections`可以使用`sort`方法对`List`进行排序。因为排序会直接修改`List`元素的位置，因此必须传入可变`List`：
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<>();
+        list.add("apple");
+        list.add("pear");
+        list.add("orange");
+        // 排序前:
+        System.out.println(list);
+        Collections.sort(list);
+        // 排序后:
+        System.out.println(list);
+    }
+}
+```
+
+### 洗牌
+
+> `Collections`提供了洗牌算法，即传入一个有序的`List`，可以随机打乱`List`内部元素的顺序，效果相当于让计算机洗牌：
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<Integer> list = new ArrayList<>();
+        for (int i=0; i<10; i++) {
+            list.add(i);
+        }
+        // 洗牌前:
+        System.out.println(list);
+        // 洗牌:
+        Collections.shuffle(list);
+        // 洗牌后:
+        System.out.println(list);
+    }
+}
+```
+
+### 不可变集合
+
+> `Collections`还提供了一组方法把可变集合封装成不可变集合：
+> 
+> * 封装成不可变List：`List<T> unmodifiableList(List<? extends T> list)`
+> * 封装成不可变Set：`Set<T> unmodifiableSet(Set<? extends T> set)`
+> * 封装成不可变Map：`Map<K, V> unmodifiableMap(Map<? extends K, ? extends V> m)`
+> 
+> 这种封装实际上是通过创建一个代理对象，拦截掉所有修改方法实现的。
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> mutable = new ArrayList<>();
+        mutable.add("apple");
+        mutable.add("pear");
+        // 变为不可变集合:
+        List<String> immutable = Collections.unmodifiableList(mutable);
+        immutable.add("orange"); // UnsupportedOperationException!
+    }
+}
+```
+
+> 然而，继续对原始的可变`List`进行增删是可以的，并且，会直接影响到封装后的“不可变”`List`：
+
+```java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> mutable = new ArrayList<>();
+        mutable.add("apple");
+        mutable.add("pear");
+        // 变为不可变集合:
+        List<String> immutable = Collections.unmodifiableList(mutable);
+        mutable.add("orange");
+        System.out.println(immutable);    // ["apple", "pear", "orange"]
+    }
+}
+
+```
+
+# IO
+
+> IO是指Input/Output，即输入和输出。以内存为中心：
+> 
+> * Input指从外部读入数据到内存，例如，把文件从磁盘读取到内存，从网络读取数据到内存等等。
+> * Output指把数据从内存输出到外部，例如，把数据从内存写入到文件，把数据从内存输出到网络等等。
+> 
+> IO流是一种顺序读写数据的模式，它的特点是单向流动。数据类似自来水一样在水管中流动，所以我们把它称为IO流。
+
+**InputStream / OutputStream**
+
+> IO流以`byte`（字节）为最小单位，因此也称为**字节流**。
+> 
+> 在Java中，`InputStream`代表输入字节流，`OuputStream`代表输出字节流，这是最基本的两种IO流。
+
+**Reader / Writer**
+
+> 如果我们需要读写的是字符，并且字符不全是单字节表示的ASCII字符，那么，按照`char`来读写显然更方便，这种流称为_字符流_。
+> 
+> Java提供了`Reader`和`Writer`表示字符流，字符流传输的最小数据单位是`char`。
+
+> 例如，我们把`char[]`数组`Hi你好`这4个字符用`Writer`字符流写入文件，并且使用UTF-8编码，得到的最终文件内容是8个字节，英文字符`H`和`i`各占一个字节，中文字符`你好`各占3个字节：
+> 
+> ```textile
+> 0x48
+> 0x69
+> 0xe4bda0
+> 0xe5a5bd
+> ```
+> 
+> 反过来，我们用`Reader`读取以UTF-8编码的这8个字节，会从`Reader`中得到`Hi你好`这4个字符。
+> 
+> 因此，`Reader`和`Writer`本质上是一个能自动编解码的`InputStream`和`OutputStream`。
+
+**同步和异步**
+
+> 同步IO是指，读写IO时代码必须等待数据返回后才继续执行后续代码，它的优点是代码编写简单，缺点是CPU执行效率低。
+> 
+> 而异步IO是指，读写IO时仅发出请求，然后立刻执行后续代码，它的优点是CPU执行效率高，缺点是代码编写复杂。
+> 
+> Java标准库的包`java.io`提供了同步IO，而`java.nio`则是异步IO。上面我们讨论的`InputStream`、`OutputStream`、`Reader`和`Writer`都是同步IO的抽象类。
+
+## File对象
+
+> 文件是非常重要的存储方式。Java的标准库`java.io`提供了`File`对象来操作文件和目录。
+> 
+> 要构造一个`File`对象，需要传入文件路径（既可以传入绝对路径，也可以传入相对路径）：
+
+```java
+import java.io.File;
+
+public class Main {
+    public static void main(String[] args) {
+        File file = new File("C:\\Users\\dwl\\Factorial.java");
+        System.out.println("=======");
+        System.out.println(file);
+    }
+}
+```
+
+> File对象有3种形式表示的路径，一种是`getPath()`，返回构造方法传入的路径，一种是`getAbsolutePath()`，返回绝对路径，一种是`getCanonicalPath`，它和绝对路径类似，但是返回的是规范路径。
+
+```java
+public class Main {
+    public static void main(String[] args) throws IOException {
+        File file = new File("..");
+        System.out.println("=======");
+        System.out.println(file.getPath());
+        System.out.println(file.getAbsolutePath());
+        System.out.println(file.getCanonicalPath());
+    }
+}
+// 输出
+// ..
+// C:\Users\dwl\Desktop\desktop\java\javatest\..
+// C:\Users\dwl\Desktop\desktop\java
+```
+
+### 文件和目录
+
+> `File`对象既可以表示文件，也可以表示目录。特别要注意的是，构造一个`File`对象，即使传入的文件或目录不存在，代码也不会出错，因为构造一个`File`对象，并不会导致任何磁盘操作。只有当我们调用`File`对象的某些方法的时候，才真正进行磁盘操作。
+> 
+> 例如，调用`isFile()`，判断该`File`对象是否是一个已存在的文件，调用`isDirectory()`，判断该`File`对象是否是一个已存在的目录：
+
+```java
+import java.io.*;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        File f1 = new File("C:\\Windows");
+        File f2 = new File("C:\\Windows\\notepad.exe");
+        File f3 = new File("C:\\Windows\\nothing");
+        System.out.println(f1.isFile());
+        System.out.println(f1.isDirectory());
+        System.out.println(f2.isFile());
+        System.out.println(f2.isDirectory());
+        System.out.println(f3.isFile());
+        System.out.println(f3.isDirectory());
+    }
+}
+```
+
+> 用`File`对象获取到一个文件时，还可以进一步判断文件的权限和大小：
+> 
+> * `boolean canRead()`：是否可读；
+> * `boolean canWrite()`：是否可写；
+> * `boolean canExecute()`：是否可执行；
+> * `long length()`：文件字节大小。
+> 
+> 对目录而言，是否可执行表示能否列出它包含的文件和子目录。
+
+### 创建和删除文件
+
+> 当File对象表示一个文件时，可以通过`createNewFile()`创建一个新文件，用`delete()`删除该文件：
+
+```java
+File file = new File("/path/to/file");
+if (file.createNewFile()) {
+    // 文件创建成功:
+    // TODO:
+    if (file.delete()) {
+        // 删除文件成功:
+    }
+}
+```
+
+> 有些时候，程序需要读写一些临时文件，File对象提供了`createTempFile()`来创建一个临时文件，以及`deleteOnExit()`在JVM退出时自动删除该文件。
+
+```java
+import java.io.*;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        File f = File.createTempFile("tmp-", ".txt"); // 提供临时文件的前缀和后缀
+        f.deleteOnExit(); // JVM退出时自动删除
+        System.out.println(f.isFile());
+        System.out.println(f.getAbsolutePath());
+    }
+}
+```
+
+### 遍历文件和目录
+
+> 当File对象表示一个目录时，可以使用`list()`和`listFiles()`列出目录下的文件和子目录名。
+
+| 方法                | 返回类型       | 返回内容                          |
+| ----------------- | ---------- | ----------------------------- |
+| **`list()`**      | `String[]` | 返回**文件名/目录名**的字符串数组           |
+| **`listFiles()`** | `File[]`   | 返回**文件对象**的数组，可以继续调用 File 的方法 |
+
+> `listFiles()`提供了一系列重载方法，可以过滤不想要的文件和目录：
+
+```java
+import java.io.*;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        File f = new File("C:\\Windows");
+        File[] fs1 = f.listFiles(); // 列出所有文件和子目录
+        printFiles(fs1);
+        File[] fs2 = f.listFiles(new FilenameFilter() { // 仅列出.exe文件
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".exe"); // 返回true表示接受该文件
+            }
+        });
+        printFiles(fs2);
+    }
+
+    static void printFiles(File[] files) {
+        System.out.println("==========");
+        if (files != null) {
+            for (File f : files) {
+                System.out.println(f);
+            }
+        }
+        System.out.println("==========");
+    }
+}
+```
+
+> 和文件操作类似，File对象如果表示一个目录，可以通过以下方法创建和删除目录：
+> 
+> * `boolean mkdir()`：创建当前File对象表示的目录；
+> * `boolean mkdirs()`：创建当前File对象表示的目录，并在必要时将不存在的父目录也创建出来；
+> * `boolean delete()`：删除当前File对象表示的目录，当前目录必须为空才能删除成功。
+
+### Path
+
+> Java标准库还提供了一个`Path`对象，它位于`java.nio.file`包。`Path`对象和`File`对象类似，但操作更加简单。
+> 
+> 如果需要对目录进行复杂的拼接、遍历等操作，使用`Path`对象更方便。
+
+```java
+import java.io.*;
+import java.nio.file.*;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        Path p1 = Paths.get(".", "project", "study"); // 构造一个Path对象
+        System.out.println(p1);
+        Path p2 = p1.toAbsolutePath(); // 转换为绝对路径
+        System.out.println(p2);
+        Path p3 = p2.normalize(); // 转换为规范路径
+        System.out.println(p3);
+        File f = p3.toFile(); // 转换为File对象
+        System.out.println(f);
+        for (Path p : Paths.get("..").toAbsolutePath()) { // 可以直接遍历Path
+            System.out.println("  " + p);
+        }
+    }
+}
+```
+
+## InputStream
+
+> `InputStream`就是Java标准库提供的最基本的输入流。它位于`java.io`这个包里。`java.io`包提供了所有同步IO的功能。
+> 
+> 要特别注意的一点是，`InputStream`并不是一个接口，而是一个抽象类，它是所有输入流的超类。这个抽象类定义的一个最重要的方法就是`int read()`，签名如下：
+
+```java
+public abstract int read() throws IOException;
+```
+
+> 这个方法会读取输入流的下一个字节，并返回字节表示的`int`值（0~255）。如果已读到末尾，返回`-1`表示不能继续读取了。
+
+> `FileInputStream`是`InputStream`的一个子类。顾名思义，`FileInputStream`就是从文件流中读取数据。下面的代码演示了如何完整地读取一个`FileInputStream`的所有字节：
+
+```java
+public void readFile() throws IOException {
+    // 创建一个FileInputStream对象:
+    InputStream input = new FileInputStream("src/readme.txt");
+    for (;;) {
+        int n = input.read(); // 反复调用read()方法，直到返回-1
+        if (n == -1) {
+            break;
+        }
+        System.out.println(n); // 打印byte的值
+    }
+    input.close(); // 关闭流
+}
+```
+
+> 如果读取过程中发生了IO错误，`InputStream`就没法正确地关闭，资源也就没法及时释放。
+> 
+> 因此，我们需要用`try ... finally`来保证`InputStream`在无论是否发生IO错误的时候都能够正确地关闭：
+
+```java
+public void readFile() throws IOException {
+    InputStream input = null;
+    try {
+        input = new FileInputStream("src/readme.txt");
+        int n;
+        while ((n = input.read()) != -1) { // 利用while同时读取并判断
+            System.out.println(n);
+        }
+    } finally {
+        if (input != null) { input.close(); }
+    }
+}
+```
+
+> 用`try ... finally`来编写上述代码会感觉比较复杂，更好的写法是利用Java 7引入的新的`try(resource)`的语法，只需要编写`try`语句，让编译器自动为我们关闭资源。推荐的写法如下：
+
+```java
+public void readFile() throws IOException {
+    try (InputStream input = new FileInputStream("src/readme.txt")) {
+        int n;
+        while ((n = input.read()) != -1) {
+            System.out.println(n);
+        }
+    } // 编译器在此自动为我们写入finally并调用close()
+}
+```
+
+### 缓冲
+
+> 在读取流的时候，一次读取一个字节并不是最高效的方法。很多流支持一次性读取多个字节到缓冲区，对于文件和网络流来说，利用缓冲区一次性读取多个字节效率往往要高很多。`InputStream`提供了两个重载方法来支持读取多个字节：
+> 
+> * `int read(byte[] b)`：读取若干字节并填充到`byte[]`数组，返回读取的字节数
+> * `int read(byte[] b, int off, int len)`：指定`byte[]`数组的偏移量和最大填充数
+
+```java
+public void readFile() throws IOException {
+    try (InputStream input = new FileInputStream("src/readme.txt")) {
+        // 定义1000个字节大小的缓冲区:
+        byte[] buffer = new byte[1000];
+        int n;
+        while ((n = input.read(buffer)) != -1) { // 读取到缓冲区
+            System.out.println("read " + n + " bytes.");
+        }
+    }
+}
+```
+
+### 阻塞
+
+> 在调用`InputStream`的`read()`方法读取数据时是阻塞的。
+
+```java
+int n;
+n = input.read(); // 必须等待read()方法返回才能执行下一行代码
+int m = n;
+```
+
+### InputStream实现类
+
+> 用`FileInputStream`可以从文件获取输入流，这是`InputStream`常用的一个实现类。此外，`ByteArrayInputStream`可以在内存中模拟一个`InputStream`：
+
+## OutputStream
+
+> `OutputStream`是Java标准库提供的最基本的输出流。
+> 
+> 和`InputStream`类似，`OutputStream`也是抽象类，它是所有输出流的超类。这个抽象类定义的一个最重要的方法就是`void write(int b)`，签名如下：
+
+```java
+public abstract void write(int b) throws IOException;
+```
+
+> 这个方法会写入一个字节到输出流。<mark>要注意的是，虽然传入的是int参数，但只会写入一个字节</mark>，即只写入`int`最低8位表示字节的部分（相当于`b & 0xff`）。
+
+> 和`InputStream`类似，`OutputStream`也提供了`close()`方法关闭输出流，以便释放系统资源。要特别注意：`OutputStream`还提供了一个`flush()`方法，它的目的是将缓冲区的内容真正输出到目的地。
+> 
+> 为什么要有`flush()`？
+> 
+> 因为向磁盘、网络写入数据的时候，出于效率的考虑，操作系统并不是输出一个字节就立刻写入到文件或者发送到网络，而是把输出的字节先放到内存的一个缓冲区里（本质上就是一个`byte[]`数组），等到缓冲区写满了，再一次性写入文件或者网络。`flush()`方法，能强制把缓冲区内容输出。
+
+### FileOutputStream
+
+> 以`FileOutputStream`为例，演示如何将若干个字节写入文件流：
+
+```java
+public void writeFile() throws IOException {
+    // 向 out/readme.txt 写入数据
+    OutputStream output = new FileOutputStream("out/readme.txt");
+    output.write(72); // H
+    output.write(101); // e
+    output.write(108); // l
+    output.write(108); // l
+    output.write(111); // o
+    output.close();
+}
+```
+
+> 每次写入一个字节非常麻烦，更常见的方法是一次性写入若干字节。这时，可以用`OutputStream`提供的重载方法`void write(byte[])`来实现：
+
+```java
+public void writeFile() throws IOException {
+    OutputStream output = new FileOutputStream("out/readme.txt");
+    // File file = new File("out/readme.txt");
+    // OutputStream output = new FileOutputStream(file.getAbsolutePath());
+    output.write("Hello".getBytes("UTF-8")); // Hello
+    output.close();
+}
+```
+
+> 优雅的关闭输出流
+
+```java
+public void writeFile() throws IOException {
+    try (OutputStream output = new FileOutputStream("out/readme.txt")) {
+        output.write("Hello".getBytes("UTF-8")); // Hello
+    } // 编译器在此自动为我们写入finally并调用close()
+}
+```
+
+### 阻塞
+
+> 和`InputStream`一样，`OutputStream`的`write()`方法也是阻塞的。
+
+### OutputStream实现类
+
+> 用`FileOutputStream`可以从文件获取输出流，这是`OutputStream`常用的一个实现类。此外，`ByteArrayOutputStream`可以在内存中模拟一个`OutputStream`
+
+## 操作Zip
+
+> `ZipInputStream`是一种`FilterInputStream`，它可以直接读取zip包的内容。
+> 
+> 另一个`JarInputStream`是从`ZipInputStream`派生，它增加的主要功能是直接读取jar文件里面的`MANIFEST.MF`文件。因为本质上jar包就是zip包，只是额外附加了一些固定的描述文件。
+
+```textile
+┌───────────────────┐
+│    InputStream    │
+└───────────────────┘
+          ▲
+          │
+┌───────────────────┐
+│ FilterInputStream │
+└───────────────────┘
+          ▲
+          │
+┌───────────────────┐
+│InflaterInputStream│
+└───────────────────┘
+          ▲
+          │
+┌───────────────────┐
+│  ZipInputStream   │
+└───────────────────┘
+          ▲
+          │
+┌───────────────────┐
+│  JarInputStream   │
+└───────────────────┘
+```
+
+ **读取Zip包**
+
+> 要创建一个`ZipInputStream`，通常是传入一个`FileInputStream`作为数据源，然后，循环调用`getNextEntry()`，直到返回`null`，表示zip流结束。
+> 
+> 一个`ZipEntry`表示一个压缩文件或目录，如果是压缩文件，我们就用`read()`方法不断读取，直到返回`-1`：
+
+```java
+try (ZipInputStream zip = new ZipInputStream(new FileInputStream(...))) {
+    ZipEntry entry = null;
+    while ((entry = zip.getNextEntry()) != null) {
+        String name = entry.getName();
+        if (!entry.isDirectory()) {
+            int n;
+            while ((n = zip.read()) != -1) {
+                ...
+            }
+        }
+    }
+}
+```
+
+**写入zip包**
+
+> `ZipOutputStream`是一种`FilterOutputStream`，它可以直接写入内容到zip包。我们要先创建一个`ZipOutputStream`，通常是包装一个`FileOutputStream`，然后，每写入一个文件前，先调用`putNextEntry()`，然后用`write()`写入`byte[]`数据，写入完毕后调用`closeEntry()`结束这个文件的打包。
+
+```java
+try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(...))) {
+    File[] files = ...
+    for (File file : files) {
+        zip.putNextEntry(new ZipEntry(file.getName()));
+        zip.write(Files.readAllBytes(file.toPath()));
+        zip.closeEntry();
+    }
+}
+```
+
+> 上面的代码没有考虑文件的目录结构。如果要实现目录层次结构，`new ZipEntry(name)`传入的`name`要用相对路径。
+
+## 读取classpath资源
+
+> 很多Java程序启动的时候，都需要读取配置文件。classpath下不止可以存放`.class`和`.jar`文件，还可以放其它任意类型的文件，把配置文件放到classpath中，就不用关心它的实际存放路径。
+
+> 在classpath中的资源文件，路径总是以`/`开头，我们先获取当前的`Class`对象，然后调用`getResourceAsStream()`就可以直接从classpath读取任意的资源文件：
+
+```java
+try (InputStream input = getClass().getResourceAsStream("/default.properties")) {
+    // TODO:
+}
+```
+
+> 调用`getResourceAsStream()`需要特别注意的一点是，如果资源文件不存在，它将返回`null`。因此，我们需要检查返回的`InputStream`是否为`null`，如果为`null`，表示资源文件在classpath中没有找到：
+
+```java
+try (InputStream input = getClass().getResourceAsStream("/default.properties")) {
+    if (input != null) {
+        // TODO:
+    }
+}
+```
+
+> 如果我们把默认的配置放到jar包中，再从外部文件系统读取一个可选的配置文件，就可以做到既有默认的配置文件，又可以让用户自己修改配置：
+
+```java
+Properties props = new Properties();
+props.load(inputStreamFromClassPath("/default.properties"));
+props.load(inputStreamFromFile("./conf.properties"));
+```
+
+## 序列化与反序列化
+
+> 序列化是指把一个Java对象变成二进制内容，本质上就是一个`byte[]`数组。
+> 
+> 序列化后可以把`byte[]`保存到文件中，或者把`byte[]`通过网络传输到远程，这样，就相当于把Java对象存储到文件或者通过网络传输出去了。
+
+> 反序列化，即把一个二进制内容（也就是`byte[]`数组）变回Java对象。
+> 
+> 有了反序列化，保存到文件中的`byte[]`数组又可以“变回”Java对象，或者从网络上读取`byte[]`并把它“变回”Java对象。
+
+> 一个Java对象要能序列化，必须实现一个特殊的`java.io.Serializable`接口，它的定义如下：
+
+```java
+public interface Serializable {
+}
+```
+
+> `Serializable`接口没有定义任何方法，它是一个空接口。我们把这样的空接口称为“标记接口”（Marker Interface），实现了标记接口的类仅仅是给自身贴了个“标记”，并没有增加任何方法。
+
+### 序列化
+
+> 把一个Java对象变为`byte[]`数组，需要使用`ObjectOutputStream`。它负责把一个Java对象写入一个字节流：
+
+```java
+import java.io.*;
+import java.util.Arrays;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        // 要写入的file
+        OutputStream file = new FileOutputStream("data.ser");
+        try (ObjectOutputStream output = new ObjectOutputStream(file)) {
+            // 将int写入file:
+            output.writeInt(12345);
+            // 将String写入file:
+            output.writeUTF("Hello");
+            // 将Object写入file:
+            output.writeObject(Double.valueOf(123.456));
+        }
+        System.out.println(Arrays.toString(buffer.toByteArray()));
+    }
+}
+```
+
+> `ObjectOutputStream`既可以写入基本类型，如`int`，`boolean`，也可以写入`String`（以UTF-8编码），还可以写入实现了`Serializable`接口的`Object`。
+
+### 反序列化
+
+> 和`ObjectOutputStream`相反，`ObjectInputStream`负责从一个字节流读取Java对象：
+
+```java
+try (ObjectInputStream input = new ObjectInputStream(...)) {
+    int n = input.readInt();
+    String s = input.readUTF();
+    Double d = (Double) input.readObject();
+}
+```
+
+> 除了能读取基本类型和`String`类型外，调用`readObject()`可以直接返回一个`Object`对象。要把它变成一个特定类型，必须强制转型。
+> 
+> `readObject()`可能抛出的异常有：
+> 
+> * `ClassNotFoundException`：没有找到对应的Class；
+> * `InvalidClassException`：Class不匹配。
+> 
+> 对于`ClassNotFoundException`，这种情况常见于一台电脑上的Java程序把一个Java对象，例如，`Person`对象序列化以后，通过网络传给另一台电脑上的另一个Java程序，但是这台电脑的Java程序并没有定义`Person`类，所以无法反序列化。
+> 
+> 对于`InvalidClassException`，这种情况常见于序列化的`Person`对象定义了一个`int`类型的`age`字段，但是反序列化时，`Person`类定义的`age`字段被改成了`long`类型，所以导致class不兼容。
+> 
+> 为了避免这种class定义变动导致的不兼容，Java的序列化允许class定义一个特殊的`serialVersionUID`静态变量，用于标识Java类的序列化“版本”，通常可以由IDE自动生成。如果增加或修改了字段，可以改变`serialVersionUID`的值，这样就能自动阻止不匹配的class版本：
+
+```java
+public class Person implements Serializable {
+    private static final long serialVersionUID = 2709425275741743919L;
+}
+```
+
+> <mark>反序列化时，由JVM直接构造出Java对象，不调用构造方法，构造方法内部的代码，在反序列化时根本不可能执行。</mark>
+
+## Reader
+
+> `Reader`是Java的IO库提供的另一个输入流接口。和`InputStream`的区别是，`InputStream`是一个字节流，即以`byte`为单位读取，而`Reader`是一个字符流，即以`char`为单位读取：
+
+| InputStream                 | Reader                        |
+| --------------------------- | ----------------------------- |
+| 字节流，以`byte`为单位              | 字符流，以`char`为单位                |
+| 读取字节（-1，0~255）：`int read()` | 读取字符（-1，0~65535）：`int read()` |
+| 读到字节数组：`int read(byte[] b)` | 读到字符数组：`int read(char[] c)`   |
+
+> `java.io.Reader`是所有字符输入流的超类，它最主要的方法是：
+
+```java
+public int read() throws IOException;
+```
+
+> 这个方法读取字符流的下一个字符，并返回字符表示的`int`，范围是`0`~`65535`。如果已读到末尾，返回`-1`。
+
+### FileReader
+
+> `FileReader`是`Reader`的一个子类，它可以打开文件并获取`Reader`。
+
+```java
+public void readFile() throws IOException {
+    // 创建一个FileReader对象:
+    Reader reader = new FileReader("src/readme.txt", StandardCharsets.UTF_8); 
+    for (;;) {
+        int n = reader.read(); // 反复调用read()方法，直到返回-1
+        if (n == -1) {
+            break;
+        }
+        System.out.println((char)n); // 打印char
+    }
+    reader.close(); // 关闭流
+}
+```
+
+> 和`InputStream`类似，`Reader`也是一种资源，需要保证出错的时候也能正确关闭，所以我们需要用`try (resource)`来保证`Reader`在无论有没有IO错误的时候都能够正确地关闭：
+
+```java
+try (Reader reader = new FileReader("src/readme.txt", StandardCharsets.UTF_8)) {
+    // TODO
+}
+```
+
+### CharArrayReader -- 不重要
+
+> `CharArrayReader`可以在内存中模拟一个`Reader`，它的作用实际上是把一个`char[]`数组变成一个`Reader`，这和`ByteArrayInputStream`非常类似：
+
+```java
+try (Reader reader = new CharArrayReader("Hello".toCharArray())) {
+}
+```
+
+### StringReader -- 不重要
+
+> `StringReader`可以直接把`String`作为数据源，它和`CharArrayReader`几乎一样：
+
+```java
+try (Reader reader = new StringReader("Hello")) {
+}
+```
+
+### InputStreamReader
+
+> 除了特殊的`CharArrayReader`和`StringReader`，普通的`Reader`实际上是基于`InputStream`构造的，因为`Reader`需要从`InputStream`中读入字节流（`byte`），然后，根据编码设置，再转换为`char`就可以实现字符流。
+
+> 如果我们已经有一个`InputStream`，想把它转换为`Reader`，可以使用`InputStreamReader`这样的转换器。
+
+```java
+// 持有InputStream:
+InputStream input = new FileInputStream("src/readme.txt");
+// 变换为Reader:
+Reader reader = new InputStreamReader(input, "UTF-8");
+```
+
+> 上述代码实际上就是`FileReader`的一种实现方式。
+
+## Writer
+
+> `Writer`是带编码转换器的`OutputStream`，它把`char`转换为`byte`并输出。
+> 
+> `Writer`和`OutputStream`的区别如下：
+
+| OutputStream                    | Writer                            |
+| ------------------------------- | --------------------------------- |
+| 字节流，以`byte`为单位                  | 字符流，以`char`为单位                    |
+| 写入字节（0~255）：`void write(int b)` | 写入字符（0~65535）：`void write(int c)` |
+| 写入字节数组：`void write(byte[] b)`   | 写入字符数组：`void write(char[] c)`     |
+| 无对应方法                           | 写入String：`void write(String s)`   |
+
+> `Writer`是所有字符输出流的超类，它提供的方法主要有：
+> 
+> * 写入一个字符（0~65535）：`void write(int c)`；
+> * 写入字符数组的所有字符：`void write(char[] c)`；
+> * 写入String表示的所有字符：`void write(String s)`。
+
+### FileWriter
+
+> `FileWriter`就是向文件中写入字符流的`Writer`。它的使用方法和`FileReader`类似：
+
+```java
+try (Writer writer = new FileWriter("readme.txt", StandardCharsets.UTF_8)) {
+    writer.write('H'); // 写入单个字符
+    writer.write("Hello".toCharArray()); // 写入char[]
+    writer.write("Hello"); // 写入String
+}
+```
+
+### OutputStreamWriter
+
+> 除了`CharArrayWriter`和`StringWriter`外，普通的Writer实际上是基于`OutputStream`构造的，它接收`char`，然后在内部自动转换成一个或多个`byte`，并写入`OutputStream`。因此，`OutputStreamWriter`就是一个将任意的`OutputStream`转换为`Writer`的转换器：
+
+```java
+try (Writer writer = new OutputStreamWriter(new FileOutputStream("readme.txt"), "UTF-8")) {
+    // TODO:
+}
+```
+
+> 上述代码实际上就是`FileWriter`的一种实现方式。
+
+## Files
+
+> 从Java 7开始，`java.nio`包里面提供了`Files`这个工具类，能极大地方便我们读写文件。
+
+> 例如，要把一个文件的全部内容读取为一个`byte[]`：
+
+```java
+byte[] data = Files.readAllBytes(Path.of("/path/to/file.txt"));
+```
+
+> 如果是文本文件，可以把一个文件的全部内容读取为`String`：
+
+```java
+// 默认使用UTF-8编码读取:
+String content1 = Files.readString(Path.of("/path/to/file.txt"));
+// 可指定编码:
+String content2 = Files.readString(Path.of("/path", "to", "file.txt"), StandardCharsets.ISO_8859_1);
+// 按行读取并返回每行内容:
+List<String> lines = Files.readAllLines(Path.of("/path/to/file.txt"));
+```
+
+> 写入文件也非常方便：
+
+```java
+// 写入二进制文件:
+byte[] data = ...
+Files.write(Path.of("/path/to/file.txt"), data);
+// 写入文本并指定编码:
+Files.writeString(Path.of("/path/to/file.txt"), "文本内容...", StandardCharsets.ISO_8859_1);
+// 按行写入文本:
+List<String> lines = ...
+Files.write(Path.of("/path/to/file.txt"), lines);
+```
+
+> 此外，`Files`工具类还有`copy()`、`delete()`、`exists()`、`move()`等快捷方法操作文件和目录。
+
+> <mark>注意：Files提供的读写方法，受内存限制，只能读写小文件，例如配置文件等，不可一次读入几个G的大文件。读写大型文件仍然要使用文件流，每次只读写一部分文件内容。</mark>
+
+# 日期与时间
+
+
+
+
+
+
+
+# 单元测试
+
+> 什么是单元测试呢？单元测试就是针对最小的功能单元编写测试代码。Java程序最小的功能单元是方法，因此，对Java程序进行单元测试就是针对单个Java方法的测试。
+
+> 为什么要有单元测试？一般要测试一个类中的方法，一个很自然的想法是编写一个`main()`方法，然后运行一些测试代码。
+> 
+> 不过，使用`main()`方法测试有很多缺点：
+> 
+> 1. 只能有一个`main()`方法，不能把测试代码分离
+> 
+> 2. 没有打印出测试结果和期望结果
+> 
+> 3. 很难编写一组通用的测试代码
+> 
+> 因此，我们需要一种测试框架，帮助我们编写测试。
+
+## JUnit
+
+> JUnit是一个开源的Java语言的单元测试框架，专门针对Java设计，使用最广泛。JUnit是事实上的单元测试的标准框架。
+> 
+> 使用JUnit编写单元测试的好处在于，我们可以非常简单地组织测试代码，并随时运行它们，JUnit就会给出成功的测试和失败的测试，还可以生成测试报告，不仅包含测试的成功率，还可以统计测试的代码覆盖率，即被测试的代码本身有多少经过了测试。对于高质量的代码来说，测试覆盖率应该在80%以上。
+
+**maven模块目录结构**
+
+```textile
+├── pom.xml
+├── src
+│   ├── main
+│   │   ├── java
+│   │   │   └── com
+│   │   │       └── ddw
+│   │   │           ├── Factorial.java   -- 要测试的目标类
+│   │   │           └── Main.java
+│   │   └── resources
+│   └── test
+│       └── java
+│           └── FactorialTest.java    -- 测试类
+└── target
+    ├── classes
+    │   └── com
+    │       └── ddw
+    │           ├── Factorial.class
+    │           └── Main.class
+    └── test-classes
+        └── FactorialTest.class
+```
+
+**添加依赖**
+
+```xml
+<dependency>
+   <groupId>org.junit.jupiter</groupId>
+   <artifactId>junit-jupiter</artifactId>
+   <version>5.10.2</version> <!-- 建议使用最新稳定版本 -->
+   <scope>test</scope>
+</dependency>
+```
+
+**测试的目标类**
+
+> 编写了一个`Factorial.java`文件后将其放入`src`
+
+```java
+package com.ddw;
+
+public class Factorial {
+    // 要测试的方法
+    public static long fact(long n) {
+        long r = 1;
+        for (long i = 2; i < n; i++) {
+            r *= i;
+        }
+        return r;
+    }
+}
+```
+
+**测试类**
+
+> 编写一个对应的`FactorialTest.java`文件，以`Test`为后缀是一个惯例，放入`test`目录中
+
+```java
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+import com.ddw.Factorial;
+
+public class FactorialTest {
+    @Test
+    void testFact() {
+        assertEquals(1, Factorial.fact(1));
+    }
+}
+```
+
+> 核心测试方法`testFact()`加上了`@Test`注解，这是JUnit要求的，它会把带有`@Test`的方法识别为测试方法。
+> 
+> 在测试方法内部，我们用`assertEquals(1, Factorial.fact(1))`表示，期望`Factorial.fact(1)`返回`1`。`assertEquals(expected, actual)`是最常用的测试方法，它在`Assertion`类中定义。`Assertion`还定义了其他断言方法，例如：
+> 
+> * `assertTrue()`: 期待结果为`true`
+> * `assertFalse()`: 期待结果为`false`
+> * `assertNotNull()`: 期待结果为非`null`
+> * `assertArrayEquals()`: 期待结果为数组并与期望数组每个元素的值均相等
+> * ...
+
+## 使用Fixture
+
+> 在一个单元测试中，我们经常编写多个`@Test`方法，来分组、分类对目标代码进行测试。
+> 
+> 在测试的时候，我们经常遇到一个对象需要初始化，测试完可能还需要清理的情况。如果每个`@Test`方法都写一遍这样的重复代码，显然比较麻烦。
+> 
+> JUnit提供了编写测试前准备、测试后清理的固定代码，我们称之为Fixture。
+
+**例如**
+
+```java
+public class Calculator {
+    private long n = 0;
+
+    public long add(long x) {
+        n = n + x;
+        return n;
+    }
+
+    public long sub(long x) {
+        n = n - x;
+        return n;
+    }
+}
+```
+
+> 上面这个类的功能很简单，但是测试的时候，我们要先初始化对象，我们不必在每个测试方法中都写上初始化代码，而是通过`@BeforeEach`来初始化，通过`@AfterEach`来清理资源：
+
+```java
+public class CalculatorTest {
+
+    Calculator calculator;
+
+    @BeforeEach
+    public void setUp() {
+        this.calculator = new Calculator();
+    }
+
+    @AfterEach
+    public void tearDown() {
+        this.calculator = null;
+    }
+
+    @Test
+    void testAdd() {
+        assertEquals(100, this.calculator.add(100));
+        assertEquals(150, this.calculator.add(50));
+        assertEquals(130, this.calculator.add(-20));
+    }
+
+    @Test
+    void testSub() {
+        assertEquals(-100, this.calculator.sub(100));
+        assertEquals(-150, this.calculator.sub(50));
+        assertEquals(-130, this.calculator.sub(-20));
+    }
+}
+```
+
+> 在上面`CalculatorTest`测试中，有两个标记为`@BeforeEach`和`@AfterEach`的方法，它们会在运行每个`@Test`方法前后自动运行。
+> 
+> 因此每个测试方法中的`calculator`都不一样。
+
+> 还有一些资源初始化和清理可能更加繁琐，而且会耗费较长的时间，例如初始化数据库。JUnit还提供了`@BeforeAll`和`@AfterAll`，它们在运行所有`@Test`前后运行。
+> 
+> 因为`@BeforeAll`和`@AfterAll`在所有`@Test`方法运行前后仅运行一次，因此，它们<mark>只能初始化静态变量</mark>，例如：
+
+```java
+public class DatabaseTest {
+    static Database db;
+
+    @BeforeAll
+    public static void initDatabase() {
+        db = createDb(...);
+    }
+
+    @AfterAll
+    public static void dropDatabase() {
+        ...
+    }
+}
+```
+
+## 异常测试
+
+> 在编写JUnit测试的时候，除了正常的输入输出，我们还要特别针对可能导致异常的情况进行测试。
+
+**例如**
+
+> 在方法的参数n小于0时会抛异常
+
+```java
+public class Factorial {
+    public static long fact(long n) {
+        if (n < 0) {
+            throw new IllegalArgumentException();
+        }
+        long r = 1;
+        for (long i = 1; i <= n; i++) {
+            r = r * i;
+        }
+        return r;
+    }
+}
+```
+
+> 下面的测试针对抛异常的情况。
+
+```java
+@Test
+void testNegative() {
+    assertThrows(IllegalArgumentException.class, new Executable() {
+        @Override
+        public void execute() throws Throwable {
+            Factorial.fact(-1);
+        }
+    });
+}
+
+```
+
+> JUnit提供`assertThrows()`来期望捕获一个指定的异常。第二个参数`Executable`封装了我们要执行的会产生异常的代码。当我们执行`Factorial.fact(-1)`时，必定抛出`IllegalArgumentException`。`assertThrows()`在捕获到指定异常时表示通过测试，未捕获到异常，或者捕获到的异常类型不对，均表示测试失败。
+
+> 因为`Executable`是单方法接口，可以简写如下：
+
+```java
+@Test
+void testNegative() {
+    assertThrows(IllegalArgumentException.class, () -> {
+        Factorial.fact(-1);
+    });
+}
+```
+
+## 条件测试
+
+> 在运行测试的时候，有些时候，我们需要排除某些`@Test`方法，不要让它运行，这时，我们就可以给它标记一个`@Disabled`：
+
+```java
+@Disabled
+@Test
+void testBug101() {
+    // 这个测试不会运行
+}
+```
+
+> 为什么我们不直接注释掉`@Test`，而是要加一个`@Disabled`？这是因为注释掉`@Test`，JUnit就不知道这是个测试方法，而加上`@Disabled`，JUnit仍然识别出这是个测试方法，只是暂时不运行。它会在测试结果中显示：
+
+```textile
+Tests run: 68, Failures: 2, Errors: 0, Skipped: 5
+```
+
+> 类似`@Disabled`这种注解就称为条件测试（Conditional Test），JUnit根据不同的条件注解，决定是否运行当前的`@Test`方法。
+
+**例子**
+
+> 想要测试`getConfigFile()`这个方法，但是在Windows上跑，和在Linux上跑的代码路径不同，因此，针对两个系统的测试方法，其中一个只能在Windows上跑，另一个只能在Mac/Linux上跑：
+
+```java
+public class Config {
+    public String getConfigFile(String filename) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return "C:\\" + filename;
+        }
+        if (os.contains("mac") || os.contains("linux") || os.contains("unix")) {
+            return "/usr/local/" + filename;
+        }
+        throw new UnsupportedOperationException();
+    }
+}
+```
+
+> 因此使用条件测试注解`@EnableOnOs`，根据操作系统来进行不同的测试
+
+```java
+@Test
+@EnabledOnOs(OS.WINDOWS)    // 在Windows上执行
+void testWindows() {
+    assertEquals("C:\\test.ini", config.getConfigFile("test.ini"));
+}
+
+@Test
+@EnabledOnOs({ OS.LINUX, OS.MAC })    // 在Linux或mac上执行
+void testLinuxAndMac() {
+    assertEquals("/usr/local/test.cfg", config.getConfigFile("test.cfg"));
+}
+```
+
+> 其它的一些条件测试注解：
+> 
+> - `@DisabledOnOs(OS.WINDOWS)`：不在指定的系统上执行测试，这里是Windows
+> 
+> - `@EnabledIfEnvironmentVariable`：需要传入环境变量`DEBUG=true`才能执行的测试
+
+## 参数化测试
+
+> 如果测试方法需要一组数据作为输入和输出，可以把测试数据组织起来，用不同的测试数据调用相同的测试方法，这就是参数化测试。
+> 
+> 参数化测试和普通测试稍微不同的地方在于，一个测试方法需要接收至少一个参数，然后，传入一组参数反复运行。
+> 
+> JUnit提供了一个`@ParameterizedTest`注解，用来进行参数化测试。
+
+**例一：只需单个参数的测试**
+
+> 如何为参数化测试提供数据，可以使用注解，这里`@ValueSource`注解来提供数据
+
+```java
+@ParameterizedTest
+@ValueSource(ints = { 0, 1, 5, 100 })
+void testAbs(int x) {
+    assertEquals(x, Math.abs(x));
+}
+```
+
+**例二：需要多个参数的测试**
+
+> 当参数个数多于1个时，就不能使用`@ValueSource`来提供数据了
+
+```java
+public class StringUtils {
+    public static String capitalize(String s) {
+        if (s.length() == 0) {
+            return s;
+        }
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase();
+    }
+}
+```
+
+> 针对上述方法的测试需要两个参数。
+> 
+> 最简单的方法是通过`@MethodSource`注解，它允许我们编写一个同名的静态方法来提供测试参数：
+> 
+> 这个方式可以提供任意个数的参数
+
+```java
+@ParameterizedTest
+@MethodSource
+void testCapitalize(String input, String result) {
+    assertEquals(result, StringUtils.capitalize(input));
+}
+
+static List<Arguments> testCapitalize() {
+    return List.of( // arguments:
+            Arguments.of("abc", "Abc"),// 可以提供多于两个的参数，但是这个案例只需要两个
+            Arguments.of("APPLE", "Apple"), //
+            Arguments.of("gooD", "Good"));
+}
+```
+
+> 另一种传入测试参数的方法是使用`@CsvSource`，它的每一个字符串表示一行，一行包含的若干参数用`,`分隔，因此，上述测试又可以改写如下：
+
+```java
+@ParameterizedTest
+@CsvSource({ 
+    "abc, Abc", // 第1组数据
+    "APPLE, Apple", // 第2组数据
+    "gooD, Good" // 第3组数据
+})
+void testCapitalize(String input, String result) {
+    assertEquals(result, StringUtils.capitalize(input));
+}
+```
+
+> 如果有成百上千的测试输入，那么，直接写`@CsvSource`就很不方便。这个时候，我们可以把测试数据提到一个独立的CSV文件中，然后标注上`@CsvFileSource`：
+
+```java
+@ParameterizedTest
+@CsvFileSource(resources = { "/test-capitalize.csv" })
+void testCapitalizeUsingCsvFile(String input, String result) {
+    assertEquals(result, StringUtils.capitalize(input));
+}
+```
+
+> JUnit只在classpath中查找指定的CSV文件，因此，`test-capitalize.csv`这个文件要放到`test`目录下，内容如下：
+
+```csv
+apple, Apple
+HELLO, Hello
+JUnit, Junit
+reSource, Resource
+```
+
+# 多线程
+
+## 多线程基础--概念相关
 
 > 进程：进程是指运行中的程序，比如我们使用QQ，就启用了一个进程，操作系统就会为其分配资源。进程是程序的一次执行过程，或是正在运行的一个程序。是动态的过程：有它自身的产生、存在和消亡的过程。
 > 线程：线程由进程创建的，是进程的一个实体，一个进程可以拥有多个线程。
@@ -178,7 +2610,7 @@ Java断言的特点是：断言失败时会抛出AssertionError，导致程序�
 > 并发：同一个时刻，多个任务交替执行，单核cpu实现的多任务就是并发。
 > 并行：同一个时刻，多个时刻，多个任务同时执行，多核cpu可以实现并行。
 
-### 创建新线程
+## 创建新线程
 
 > Java语言内置了多线程支持。当Java程序启动的时候，实际上是启动了一个JVM进程，然后，JVM启动主线程来执行`main()`方法。在`main()`方法中，我们又可以启动其他线程。
 
@@ -220,7 +2652,7 @@ Java断言的特点是：断言失败时会抛出AssertionError，导致程序�
    
    > ==注：==只有调用`start()`方法才能创建新线程，直接调用`run()`方法只能当作普通函数调用
 
-### 线程的状态
+## 线程的状态
 
 > 在Java程序中，一个线程对象只能调用一次`start()`方法启动新线程，并在新线程中执行`run()`方法。一旦`run()`方法执行完毕，线程就结束了
 
@@ -265,7 +2697,7 @@ public class Main {
 
 > 此外，`join(long)`的重载方法也可以指定一个等待时间，超过等待时间后就不再继续等待
 
-### 线程中断
+## 线程中断
 
 1. 使用`interrupt()`方法中断线程
    
@@ -371,7 +2803,7 @@ class HelloThread extends Thread {
 
 > ==注意：== 线程间共享变量需要使用`volatile`关键字标记，确保每个线程都能读取到更新后的变量值。
 
-### 守护线程
+## 守护线程
 
 > 守护线程是指为其他线程服务的线程。在JVM中，所有非守护线程都执行完毕后，无论有没有守护线程，虚拟机都会自动退出。
 > 因此，JVM退出时，不必关心守护线程是否已结束。
@@ -388,7 +2820,7 @@ t.start();
 
 > ==注：== 守护线程不能持有任何需要关闭的资源，例如打开文件等，因为虚拟机退出时，守护线程没有任何机会来关闭文件，这会导致数据丢失。
 
-### 线程同步
+## 线程同步
 
 > 线程的执行是随机不可控，所以当多个线程对同一个数据进行读写的时候，会出现数据不一致的问题，通过加锁的方法可以让线程同步执行。
 
@@ -449,7 +2881,7 @@ class DecThread extends Thread {
 
 > ==注：== 在使用synchronized的时候，不必担心抛出异常。因为无论是否有异常，都会在synchronized结束处正确释放锁
 
-#### 不需要synchronized加锁的操作
+### 不需要synchronized加锁的操作
 
 > JVM规范定义了几种原子操作：
 
@@ -462,7 +2894,7 @@ class DecThread extends Thread {
 
 > 如果多线程读写的是一个不可变对象，那么无需同步，因为不会修改对象的状态
 
-#### 同步方法
+### 同步方法
 
 ```java
 public class Counter {
@@ -509,7 +2941,7 @@ public synchronized void add(int n) { // 锁住this
 
 > 用`synchronized`修饰的方法就是同步方法，它表示整个方法都必须用`this`实例加锁
 
-#### 死锁
+### 死锁
 
 > java线程是可重入的锁
 
@@ -540,7 +2972,7 @@ public class Counter {
 
 > 死锁：两个线程各自持有不同的锁，然后各自试图获取对方手里的锁，造成了双方无限等待下去，这就是死锁
 
-#### 使用wait和notify
+### 使用wait和notify
 
 > 在Java程序中，`synchronized`解决了多线程竞争的问题，但是`synchronized`并没有解决多线程协调的问题
 
@@ -577,7 +3009,7 @@ public synchronized void addTask(String s) {
 }
 ```
 
-#### 使用ReentrantLock
+### 使用ReentrantLock
 
 > `ReentrantLock`从Java5开始提供，一种用于替代`synchronized`加锁的工具
 
@@ -639,7 +3071,7 @@ if (lock.tryLock(1, TimeUnit.SECONDS)) {
 }
 ```
 
-#### 使用Condition ---- 实现ReentrantLock的wait和notify功能
+### 使用Condition ---- 实现ReentrantLock的wait和notify功能
 
 > 使用`ReentrantLock`时，用`Condition`对象来实现`wait`和`notify`的功能
 
@@ -689,7 +3121,7 @@ if (condition.await(1, TimeUnit.SECOND)) {
 }
 ```
 
-#### 使用ReadWriteLock ---- 读写锁
+### 使用ReadWriteLock ---- 读写锁
 
 > `ReentrantLock`保证了只有一个线程可以执行临界区代码，但有时我们想要：多个线程同时读，但只要有一个线程在写 其他线程就必须等待。
 
@@ -735,7 +3167,7 @@ public class Counter {
 }
 ```
 
-#### 使用StampedLock ---- 乐观读写锁
+### 使用StampedLock ---- 乐观读写锁
 
 > StampedLock java8后引入，是一种乐观锁，也是一种==不可重入锁==
 
@@ -792,7 +3224,7 @@ public class Point {
 }
 ```
 
-#### 使用Semaphore ---- 信号量
+### 使用Semaphore ---- 信号量
 
 > `Semaphore` 是信号量，用来控制同时访问某个资源的线程数。它需要保证同一时刻最多有N个线程能访问，比如同一时刻最多创建100个数据库连接，最多允许10个用户下载等。
 
@@ -829,7 +3261,7 @@ if (semaphore.tryAcquire(3, TimeUnit.SECONDS)) {
 }
 ```
 
-#### 使用Concurrent集合 ---- 并发集合类
+### 使用Concurrent集合 ---- 并发集合类
 
 > `java.util.concurrent`包提供了对应的并发集合类，使用这些并发集合与使用非线程安全的集合类完全相同。
 
@@ -851,7 +3283,7 @@ map.put("B", "2");
 map.get("A", "1");
 ```
 
-### 线程池
+## 线程池
 
 > Java语言虽然内置了多线程支持，启动一个新线程非常方便，但是，创建线程需要操作系统资源（线程资源，栈空间等），频繁创建和销毁大量线程需要消耗大量时间。线程池可以复用一组线程减少损耗。
 
@@ -929,7 +3361,7 @@ ExecutorService es = new ThreadPoolExecutor(
 
 > `ScheduledThreadPool`是一种定期执行线程池中任务的线程池
 
-### 使用Future ---- 线程的返回值
+## 使用Future ---- 线程的返回值
 
 > 使用Java标准库提供的线程池是非常方便的。我们提交的任务只需要实现`Runnable`接口，就可以让线程池去执行。
 
@@ -964,9 +3396,9 @@ String result = future.get(); // 可能阻塞，为获取结果前会一直阻�
 - `cancel(boolean mayInterruptIfRunning)`：取消当前任务
 - `isDone()`：判断任务是否已完成
 
-### 使用CompletableFuture ---- 非阻塞的Future
+## 使用CompletableFuture ---- 非阻塞的Future
 
-### 使用ThreadLocal ---- 在线程内传递状态
+## 使用ThreadLocal ---- 在线程内传递状态
 
 ==注意：== spring中的线程是复用的，所有在使用`ThreadLocal`时记得及时清理
 
@@ -1025,12 +3457,12 @@ void step1() {
 
 > 各个线程的`ThreadLocal`关联的实例互不干扰
 
-#### 使用虚拟线程 ---- 类似于协程
+### 使用虚拟线程 ---- 类似于协程
 
 > 线程是一种重量级资源。
 > ==在服务器端，对用户请求，通常都实现为一个线程处理一个请求。== 由于用户的请求数往往远超操作系统能同时调度的线程数量，所以通常使用线程池来尽量减少频繁创建和销毁线程的成本。
 
-## Maven基础
+# Maven基础
 
 > Maven是一个Java项目管理和构建工具，它可以定义项目结构、项目依赖，并使用统一的方式进行自动化构建，是Java项目不可缺少的工具。
 
@@ -1147,7 +3579,7 @@ Maven定义了几种依赖关系，分别是`compile`、`test`、`runtime`和`pr
 
 #### 发布Artifact
 
-## 网络编程
+# 网络编程
 
 ### Http编程
 
@@ -1155,7 +3587,7 @@ Maven定义了几种依赖关系，分别是`compile`、`test`、`runtime`和`pr
 
 早期的jdk是通过`HttpURLConnection`访问HTTP，比较麻烦
 
-从==Java 11==开始，引入了新的`HttpClient`，它使用==链式调用的API==，能大大简化HTTP的处理。
+从<mark>Java 11</mark>开始，引入了新的`HttpClient`，它使用<mark>链式调用的API</mark>，能大大简化HTTP的处理。
 
 使用`HttpClient`，首先需要创建一个全局`HttpClient`实例，因为`HttpClient`内部使用线程池优化多个HTTP连接，可以复用：
 
@@ -1220,19 +3652,21 @@ String s = response.body();
 
 ### RMI远程调用 ---- java代码通过网络向另一个java代码发起调用
 
-## 函数式编程
+
+
+# 函数式编程
 
 > 函数式编程就是一种抽象程度很高的编程范式，纯粹的函数式编程语言编写的函数没有变量，因此，任意一个函数，只要输入是确定的，输出就是确定的，这种纯函数我们称之为没有副作用。而允许使用变量的程序设计语言，由于函数内部的变量状态不确定，同样的输入，可能得到不同的输出，因此，这种函数是有副作用的。
 
 > 函数式编程的一个特点就是，允许把函数本身作为参数传入另一个函数，还允许返回一个函数！
 
-### Lambda基础
+## Lambda基础
 
 > Lambda表达式的形式为：(arg1, arg2) -> {方法体}
 
 > Lambda表达式可以替代方法中单抽象方法接口(只有一个抽象方法的接口)
 
-例:
+**例:**
 
 ```java
 String[] array = ...
@@ -1252,7 +3686,7 @@ Arrays.sort(arr, (o1, o2) -> o2.compareTo(o1));
 
 用注解`@FunctionalInterface`标记。
 
-> ==函数式接口(FunctionalInterface)的定义是：==
+> <mark>函数式接口(FunctionalInterface)的定义是：</mark>
 > 
 > - 只包含一个抽象方法的接口
 > - 其他方法（比如`default`方法、`static`方法、`Object`里的方法）不算在内
@@ -1289,7 +3723,7 @@ public interface Comparator<T> {
 }
 ```
 
-### 方法引用
+## 方法引用
 
 > 对于单方法接口`FunctionalInterfac`除了可以传入Lambda表达式，还可以传入方法引用
 
@@ -1315,7 +3749,7 @@ public class Main {
 
 > `Comparator<String>`接口定义的方法是`int compare(String, String)`，和静态方法`int cmp(String, String)`相比，除了方法名外，方法参数一致，返回类型相同，因此，我们说两者的方法签名一致。
 
-==一个方法的形参个数、类型和返回值类型与单方法接口的抽象方法一致，就可以用这个方法直接引用==
+<mark>一个方法的形参个数、类型和返回值类型与单方法接口的抽象方法一致，就可以用这个方法直接引用</mark>
 
 **上述代码也可以改造成这样**
 
@@ -1377,19 +3811,23 @@ class Person {
 }
 ```
 
-==构造方法的引用写法是：==`类名::new`
+<mark>构造方法的引用写法是：</mark>`类名::new`
 
-### Stream ---- 流
-
-## Web开发
+## Stream ---- 流
 
 
 
 
 
+# Web开发
 
 
-## JVM
+
+
+
+
+
+# JVM
 
 <img src="./pic/java查缺补漏/屏幕截图 2025-07-28 233929.png">
 <img src="./pic/java查缺补漏/屏幕截图 2025-08-24 150557.png">
@@ -1731,7 +4169,7 @@ slot的重复利用：
 
 
 
-## 设计模式
+# 设计模式
 
 软件设计模式：又称为设计模式，是一套被反复使用、多数人知晓的、经过分类编目的、代码设计经验的总结。它描述了在软件设计过程中的一些不断重复发生的问题、以及该问题的解决方案。
 

@@ -112,8 +112,8 @@ const (
    
    - byte、rune
    - 注：
-     - 1. 直接打印字符会输出对应 ASCII 码
-     - 2. byte 型字符(uint8 类型)是指 ASCII 表中一个字符，rune 类型代表一个 utf-8 字符
+     - 直接打印字符会输出对应 ASCII 码
+     - byte 型字符(uint8 类型)是指 ASCII 表中一个字符，rune 类型代表一个 utf-8 字符
      - 字符转字符串: `string(by)`
 
 ```go
@@ -836,11 +836,15 @@ for t := range ticker.C {
 
 ### 定义指针
 
+> 关于指针有两个常用的操作符，一个是取地址符`&`，另一个是解引用符`*`。对一个变量进行取地址，会返回对应类型的指针。
+
 ```go
 var a = 10
 // nb是一个nil
 var nb *int
 var b *int = &a
+// 解引用
+fmt.Println(*b)
 // 指向指针的指针
 var c **int = &b    // 简写 c := &b
 ```
@@ -850,15 +854,38 @@ var c **int = &b    // 简写 c := &b
 1. 用`new`函数分配内存 --- 初始化的变量为对应类型的默认值
    
    > `new`是一个内置的函数，它的函数签名为：`func new(Type) *Type`
+   > 
+   > * 返回值是类型指针
+   > * 接收参数是类型
+   > * 专用于给指针分配内存空间
    
    ```go
    var a = new(int) // a是一个指针变量，类型是*int，*a为0（int的默认值）
+   // 示例
+   func main() {
+      fmt.Println(*new(string))
+      fmt.Println(*new(int))
+      fmt.Println(*new([5]int))
+      fmt.Println(*new([]float64))
+   }
+   // 输出
+   
+   0
+   [0 0 0 0 0]
+   []
    ```
 
 2. 用`make`函数分配内存
    
+   ```go
+   func make(t Type, size ...IntegerType) Type
+   ```
+   
    > `make` 只用于 `slice`、`map`、`channel` 的初始化，返回的还是这三个引用类型本身
-   > `new` 用于类型的内存分配，返回的是指向类型的指针
+   > 
+   > * 返回值是值，不是指针
+   > * 接收的第一个参数是类型，不定长参数根据传入类型的不同而不同
+   > * 专用于给切片，映射表，通道分配内存。
 
 ## 结构体
 
@@ -868,12 +895,19 @@ var c **int = &b    // 简写 c := &b
 
 ### 用 type 自定义类型
 
+> 自定义类型与其它自定义类型不能相互赋值，哪怕它们底层是相同类型
+
 ```go
-type myInt int
+type myInt1 int
+type myInt2 int
 
 func main() {
-    var a myInt = 10
+    var a myInt1 = 10
     fmt.Printf("%T", a) // main.myInt
+    var b myInt2 = 20
+    if a == b {    // ❌，不能相互比较，不是相同类型
+    //...
+    }
 }
 ```
 
@@ -938,7 +972,7 @@ var p7 = Person{
 
 ### 结构体方法
 
-> go 语言中，没有类的概念但是可以给类型（结构体、自定义类型）定义方法。所谓方法就是定义了接收者的函数。
+> go 语言中，没有类的概念但是可以给类型（<mark>结构体、自定义类型</mark>）定义方法。所谓方法就是定义了接收者的函数。
 > 
 > 首字母大写的结构体方法是公有的，可以在其它包中直接调用。
 > 
@@ -1060,7 +1094,7 @@ func (d Dog) wang() {
 
 ### 结构体和 JSON 相互转换(序列化和反序列化)
 
-> 结构体中字段名首字母小写的是私有字段，大写的是公有字段，==私有属性不能被 json 包访问==
+> 结构体中字段名首字母小写的是私有字段，大写的是公有字段，<mark>私有属性不能被 json 包访问</mark>
 
 ```go
 type Student struct {
@@ -1120,6 +1154,10 @@ fmt.Printf("%#v", s2)
 
 ## go 的包(模块化)
 
+> 通过`go get`引用库
+> 
+> 通过`go intall`安装命令行程序
+
 > go 中的包可以分为三种：
 > 
 > 1. 系统内置包
@@ -1128,19 +1166,129 @@ fmt.Printf("%#v", s2)
 
 1. 系统内置包 -- 引入后直接使用
    
-   - fmt
-   - strconv
-   - strings
-   - sort
-   - errors
-   - time
-   - encoding/json
-   - os
-   - io 等
+   * fmt
+   * strconv
+   * strings
+   * sort
+   * errors
+   * time
+   * encoding/json
+   * os
+   * io 等
 
 2. 自定义包 -- 开发者自己写的包
 
 3. 第三方包 -- 需要下载到本地才可以使用
+
+### 编写模块
+
+> Go Module 本质上是基于 VCS（版本控制系统），当你在下载依赖时，实际上执行的是 VCS 命令，比如`git`，所以如果你想要分享你编写的库，只需要做到以下三点：
+> 
+> * 源代码仓库可公开访问，且 VCS 属于以下的其中之一
+>   * git
+>   * hg (Mercurial)
+>   * bzr (Bazaar)
+>   * svn
+>   * fossil
+> * 是一个符合规范的 go mod 项目
+> * 符合语义化版本规范
+
+**准备**
+
+> 启用了 Go Module，通过`go env GO111MODULE`来查看
+
+**创建**
+
+> 在github上创建一个仓库，创建完成后，可以看到仓库的 URL 是`https://github.com/246859/hello`，对应的 go 模块名就是`github.com/246859/hello`，克隆到本地，通过`go mod init`命令初始化模块。
+
+**编写代码**
+
+**编写测试**
+
+**编写文档**
+
+**提交代码**
+
+### 使用模块
+
+### 工作区
+
+> 工作区(workspace)，是 Go 在 1.18 引入的关于多模块管理的一个新的解决方案，旨在更好的进行本地的多模块开发工作，下面将通过一个示例进行讲解。
+
+**示例**
+
+> 项目下有两个独立的 go 模块，分别是`auth`，`user`
+
+```textile
+LICENSE
+README.md
+auth
+go.work
+user
+```
+
+> `auth`模块依赖于`user`模块的结构体`User`，内容如下
+
+```go
+package auth
+
+import (
+  "errors"
+  "github.com/246859/work/user"  // 导入user
+)
+
+// Verify user credentials if is ok
+func Verify(user user.User) (bool, error) {
+  password, err := query(user.Name)
+  if err != nil {
+    return false, err
+  }
+  if password != user.Password {
+    return false, errors.New("authentication failed")
+  }
+  return true, nil
+}
+
+func query(username string) (string, error) {
+  if username == "jack" {
+    return "jack123456", nil
+  }
+  return "", errors.New("user not found")
+}
+```
+
+> 在这个项目中，我们可以这样编写`go.work`文件
+
+```go
+go 1.22
+
+use (
+  ./auth
+  ./user
+)
+```
+
+**命令**
+
+> 下面是一些工作区的命令
+
+| 命令               | 介绍                  |
+| ---------------- | ------------------- |
+| `go work edit`   | 编辑`go.work`         |
+| `go work init`   | 初始化一个新的工作区          |
+| `go work sync`   | 同步工作区的模块依赖          |
+| `go work use`    | 往`go.work`中添加一个新模块  |
+| `go work vendor` | 将依赖按照 vendor 格式进行复制 |
+
+**指令**
+
+> `go.work`文件的内容很简单，只有三个指令
+> 
+> * `go`，指定 go 版本
+> * `use`，指定使用的模块
+> * `replace`，指定替换的模块
+
+
 
 ### 包管理工具 -- go mod
 
@@ -1182,6 +1330,32 @@ go install github.com/shopspring/decimal
 > go 包都安装在 `$GOPATH/pkg/mod` 里全局共享，如果一个包已经存在那么使用安装命令不会重复下载，同一个包的不同版本可以共存，不会将第三方包拷贝进项目里
 
 > 可以用 `go clean -modcache`命令清除掉 `$GOPATH/pkg/mod` 里的全局共享包
+
+## 测试
+
+> 在go语言中使用`go test`作为测试命令，在包目录内，所有以`_test.go`为后缀名的源文件在执行go build时不会被构建成包的一部分，它们是go test测试的一部分。
+> 
+> 在`*_test.go`文件中，有三种类型的函数：
+> 
+> - 测试函数
+> 
+> - 基准测试（benchmark）函数
+> 
+> - 示例函数
+> 
+> 测试函数：是以Test为函数名前缀的函数，用于测试程序的一些逻辑行为是否正确，go test命令会调用这些测试函数并报告测试结果是PASS或FAIL。
+> 
+> 基准测试函数：是以Benchmark为函数名前缀的函数，它们用于衡量一些函数的性能；go test命令会多次运行基准测试函数以计算一个平均的执行时间。
+> 
+> 示例函数：是以Example为函数名前缀的函数，提供一个由编译器保证正确性的示例文档。
+
+### 测试函数
+
+
+
+
+
+
 
 ## go中常见的命令
 
@@ -1230,6 +1404,12 @@ go install github.com/shopspring/decimal
 
 1. **`go test`: 运行测试**
    - 执行当前包的测试函数（文件名需以`_test.go`结尾）
+   - `-v`参数：显示log打印
+   - `-run`参数：可以运行特定的测试函数
+
+```go
+
+```
 
 ## 接口
 
@@ -1268,6 +1448,29 @@ func (p Phone) start(x, y int) int {
 }
 func (p Phone) stop(x int) int {
     return x
+}
+```
+
+> <mark>官方对接口实现的定义：方法集是接口方法集的超集。</mark>
+> 
+> 所以除了上面寻常的实现方式，下面也是实现接口的方式，可以使用多态接收
+
+```go
+type Person interface {
+    Walk()
+}
+// Man实现了Person接口，因为此时Man的方法集是Person的超集
+type Man struct {
+        Person
+        age int
+}
+
+man := Man{age: 20}
+tesss(man)    // √ Man结构体可以被Person接收
+
+func tesss(p Person) {gou
+  // p.Walk()    ❌，未定义方法
+    fmt.Println("dd")
 }
 ```
 
@@ -1337,7 +1540,7 @@ p2 = np
 
 > 空接口不定义任何方法，空接口表示没有任何约束，因此任何类型都可以用空接口接收。也就是空接口表示 `any` 类型（任意类型）
 
-> ==使用 `any` 类型接收的变量，想要使用操作时需要使用断言恢复原来的类型(与 ts 很像)==
+> **使用 `any` 类型接收的变量，想要使用操作时需要使用断言恢复原来的类型(与 ts 很像)**
 
 ### 类型断言
 
@@ -1368,12 +1571,16 @@ if ok {
 > 也可以用`x.(type)`返回 x 的实际类型，这个只能用在 switch 中
 
 ```go
-switch a.(type) {
+switch a_type := a.(type) {
     case int:
         fmt.Println("int")
+        // 这里a_type是int类型
+        return a_type
         break
     case Phone:
         fmt.Println("Phone")
+        // 这里是Phone类型
+        return a_type
     default:
         fmt.Println("default")
 }
@@ -1619,7 +1826,7 @@ var ch4 <-chan int = ch1
 
 > 通常情况下通道在接收数据时，如果没有数据可以接收将会发生阻塞
 
-> `select` 使用类似于 `switch` 语句，它有一系列 `case` 分支和一个默认分支。每个分支对应一个管道的通信(接收或发送)过程。`select` 会一直等待，直到某个 `case` 的通信操作完成时，就会执行 `case` 分支对应的语句。所有管道读取完毕后执行 default。格式如下:
+> `select` 使用类似于 `switch` 语句，它有一系列 `case` 分支和一个`default`分支。每个`case`分支只能操作一个管道，且只能进行一种操作，要么读要么写，当有多个 `case` 可用时，`select` 会伪随机的选择一个 `case` 来执行。如果所有 `case` 都不可用，就会执行 `default` 分支，倘若没有 `default` 分支，将会阻塞等待，直到至少有一个 `case` 可用。格式如下:
 
 ```go
 select{
@@ -1638,31 +1845,286 @@ select{
 > 使用 select 时不需要关闭管道
 
 ```go
-ch1 := make(chan int, 5)
-for i := 0; i < cap(ch1); i++ {
-    ch1 <- i
-}
-ch2 := make(chan string, 5)
-for i := 0; i < cap(ch2); i++ {
-    ch2 <- fmt.Sprintf("元素%d", i)
-}
-
-for {    // 这是一个死循环
-
-}
-
-for flag := 0; flag == 0; {    // 当flag不为0时跳出循环
-    select {
-    case v := <-ch1:
-        fmt.Println("case 1 打印:", v)
-    case v := <-ch2:
-        fmt.Println("case 2 打印:", v)
-    default:
-        fmt.Println("都读取完了，要跳出for循环")
-        // return    // 通过retrun来跳出循环,如果代码在一个函数中
-        flag = 1
+func main() {
+    ch := make(chan int)
+    // 关闭通道
+    defer close(ch)
+    go func() {
+        time.Sleep(3 * time.Second)
+        ch <- 1
+    }()
+    for {
+        select {
+        case <-ch:
+            fmt.Println("ch")
+            return
+        default:
+            fmt.Println("default")
+        }
+        time.Sleep(100 * time.Millisecond)
     }
 }
+```
+
+### Context 上下文
+
+> `Context` 译为上下文，是 Go 提供的一种并发控制的解决方案，相比于管道和 `WaitGroup`，它可以更好的控制子孙协程以及层级更深的协程。
+> 
+> `Context`与`Context`之间组成了一种树的关系，上级`Context`可以取消下级`Context`或往下发送消息。
+> 
+> `Context` 本身是一个接口，只要实现了该接口都可以称之为上下文例如著名 Web 框架 `Gin` 中的 `gin.Context`。
+> 
+> `context` 标准库也提供了几个实现，分别是：
+> 
+> * `emptyCtx`
+> * `cancelCtx`
+> * `timerCtx`
+> * `valueCtx`
+> 
+> `context`包的核心API：
+> 
+> - `context.WithCancel`
+> 
+> - `context.WithTimeout`
+> 
+> - `context.WithDeadline`
+> 
+> - `context.WithValue`
+
+#### emptyCtx
+
+> 顾名思义，`emptyCtx` 就是空的上下文，充当根上下文来创建其它上下文，`emptyCtx` 就可以通过 `context.Background` 和 `context.TODO` 来进行创建。两个函数如下：
+
+```go
+type emptyCtx struct{}
+
+type backgroundCtx struct{ emptyCtx }
+
+type todoCtx struct{ emptyCtx }
+
+func Background() Context {
+    return backgroundCtx{}
+}
+
+func TODO() Context {
+    return todoCtx{}
+}
+```
+
+>  `emptyCtx` 没法被取消，没有 `deadline`，也不能取值，实现的方法都是返回零值：
+
+```go
+type emptyCtx struct{}
+
+func (emptyCtx) Deadline() (deadline time.Time, ok bool) {
+    return
+}
+
+func (emptyCtx) Done() <-chan struct{} {
+    return nil
+}
+
+func (emptyCtx) Err() error {
+    return nil
+}
+
+func (emptyCtx) Value(key any) any {
+    return nil
+}
+
+```
+
+> `emptyCtx` 通常是用来当作最顶层的上下文，在创建其他三种上下文时作为父上下文传入。context 包中的各个实现关系如下图所示:
+
+<img title="" src="./pic/go/context_1.png" alt="">
+
+#### valueCtx
+
+> `valueCtx` 多用于在多级协程中传递一些数据，无法被取消，因此 `ctx.Done` 永远会返回 `nil`
+> 
+> `valueCtx` 实现比较简单，其内部只包含一对键值对，和一个内嵌的 `Context` 类型的字段。
+
+```go
+type valueCtx struct {
+   Context
+   key, val any
+}
+```
+
+> 其本身只实现了 `Value` 方法，逻辑也很简单，当前上下文找不到就去父上下文找。
+
+```go
+func (c *valueCtx) Value(key any) any {
+   if c.key == key {
+      return c.val
+   }
+   return value(c.Context, key)
+}
+```
+
+**示例**
+
+```go
+var waitGroup sync.WaitGroup
+
+func main() {
+  waitGroup.Add(1)
+    // 传入上下文
+  go Do(context.WithValue(context.Background(), 1, 2))
+  waitGroup.Wait()
+}
+
+func Do(ctx context.Context) {
+    // 新建定时器
+  ticker := time.NewTimer(time.Second)
+  defer waitGroup.Done()
+  for {
+    select {
+    case <-ctx.Done(): // 永远也不会执行
+    case <-ticker.C:
+      fmt.Println("timeout")
+      return
+    default:
+      fmt.Println(ctx.Value(1))
+    }
+    time.Sleep(time.Millisecond * 100)
+  }
+}
+```
+
+**输出**
+
+```textile
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+timeout
+```
+
+#### cancelCtx
+
+> `cancelCtx` 以及 `timerCtx` 都实现了 `canceler` 接口，接口类型如下
+
+```go
+type canceler interface {
+    // removeFromParent 表示是否从父上下文中删除自身
+    // err 表示取消的原因
+  cancel(removeFromParent bool, err error)
+    // Done 返回一个管道，用于通知取消
+  Done() <-chan struct{}
+}
+```
+
+> `cancel` 方法不对外暴露，在创建上下文时通过闭包将其包装为返回值以供外界调用，就如 `context.WithCancel` 源代码中所示
+
+```go
+func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
+   if parent == nil {
+      panic("cannot create context from nil parent")
+   }
+   c := newCancelCtx(parent)
+   // 尝试将自身添加进父级的children中
+   propagateCancel(parent, &c)
+   // 返回context和一个函数
+   return &c, func() { c.cancel(true, Canceled) }
+}
+```
+
+> `cancelCtx` 译为可取消的上下文，创建时，如果父级实现了 `canceler`，就会将自身添加进父级的 `children` 中，否则就一直向上查找。如果所有的父级都没有实现 `canceler`，就会启动一个协程等待父级取消，然后当父级结束时取消当前上下文。当调用 `cancelFunc` 时，`Done` 通道将会关闭，该上下文的任何子级也会随之取消，最后会将自身从父级中删除。下面是一个简单的示例：
+
+```go
+var waitGroup sync.WaitGroup
+
+func main() {
+  bkg := context.Background()
+    // 返回了一个cancelCtx和cancel函数
+  cancelCtx, cancel := context.WithCancel(bkg)
+  waitGroup.Add(1)
+  go func(ctx context.Context) {
+    defer waitGroup.Done()
+    for {
+      select {
+      case <-ctx.Done():
+        fmt.Println(ctx.Err())
+        return
+      default:
+        fmt.Println("等待取消中...")
+      }
+      time.Sleep(time.Millisecond * 200)
+    }
+
+  }(cancelCtx)
+  time.Sleep(time.Second)
+  cancel()
+  waitGroup.Wait()
+}
+```
+
+**输出**
+
+```go
+等待取消中...
+等待取消中...
+等待取消中...
+等待取消中...
+等待取消中...
+context canceled
+```
+
+#### timerCtx
+
+> `timerCtx` 在 `cancelCtx` 的基础之上增加了超时机制，`context` 包下提供了两种创建的函数，分别是 `WithDeadline` 和 `WithTimeout`，两者功能类似，前者是指定一个具体的超时时间，比如指定一个具体时间 `2023/3/20 16:32:00`，后者是指定一个超时的时间间隔，比如 5 分钟后。两个函数的签名如下
+
+```go
+func WithDeadline(parent Context, d time.Time) (Context, CancelFunc)
+
+func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+```
+
+> `timerCtx` 会在时间到期后自动取消当前上下文，取消的流程除了要额外的关闭 `timer` 之外，基本与 `cancelCtx` 一致。下面是一个简单的 `timerCtx` 的使用示例
+
+```go
+var wait sync.WaitGroup
+
+func main() {
+  deadline, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second))
+  defer cancel()
+  wait.Add(1)
+  go func(ctx context.Context) {
+    defer wait.Done()
+    for {
+      select {
+      case <-ctx.Done():
+        fmt.Println("上下文取消", ctx.Err())
+        return
+      default:
+        fmt.Println("等待取消中...")
+      }
+      time.Sleep(time.Millisecond * 200)
+    }
+  }(deadline)
+  wait.Wait()
+}
+```
+
+> 尽管上下文到期会自动取消，但是为了保险起见，在相关流程结束后，最好手动取消上下文。
+
+**输出如下**
+
+```textile
+等待取消中...
+等待取消中...
+等待取消中...
+等待取消中...
+等待取消中...
+上下文取消 context deadline exceeded
 ```
 
 ### 并发安全与锁
@@ -1691,9 +2153,299 @@ func test()  {
 #### 读写锁
 
 > 读写锁：允许多个读操作并发同时读取，但对于写操作是完全互斥的。
+> 
+> 对于一个协程而言：
+> 
+> * 如果获得了读锁，其他协程进行写操作时会阻塞，其他协程进行读操作时不会阻塞
+> * 如果获得了写锁，其他协程进行写操作时会阻塞，其他协程进行读操作时会阻塞
+> 
+> Go 中读写互斥锁的实现是 `sync.RWMutex`，它也同样实现了 `Locker` 接口，但它提供了更多可用的方法，如下：
 
 ```go
 var mutex sync.RWMutex    // 定义读写锁对象
+
+// 加读锁
+func (rw *RWMutex) RLock()
+
+// 尝试加读锁
+func (rw *RWMutex) TryRLock() bool
+
+// 解读锁
+func (rw *RWMutex) RUnlock()
+
+// 加写锁
+func (rw *RWMutex) Lock()
+
+// 尝试加写锁
+func (rw *RWMutex) TryLock() bool
+
+// 解写锁
+func (rw *RWMutex) Unlock()
+```
+
+#### 条件变量
+
+> 条件变量，与互斥锁一同出现和使用，所以有些人可能会误称为条件锁，但<mark>它并不是锁</mark>，是一种通讯机制。Go 中的 `sync.Cond` 对此提供了实现，而创建条件变量的函数签名如下：
+
+```go
+func NewCond(l Locker) *Cond
+```
+
+> 可以看到创建一个条件变量前提就是需要创建一个锁，`sync.Cond` 提供了如下的方法以供使用
+
+```go
+// 阻塞等待条件生效，直到被唤醒
+func (c *Cond) Wait()
+
+// 唤醒一个因条件阻塞的协程
+func (c *Cond) Signal()
+
+// 唤醒所有因条件阻塞的协程
+func (c *Cond) Broadcast()
+```
+
+**示例**
+
+```go
+var wait sync.WaitGroup
+var count = 0
+
+var rw sync.RWMutex
+
+// 条件变量
+var cond = sync.NewCond(rw.RLocker())
+
+func main() {
+  wait.Add(12)
+  // 读多写少
+  go func() {
+    for i := 0; i < 3; i++ {
+      go Write(&count)
+    }
+    wait.Done()
+  }()
+  go func() {
+    for i := 0; i < 7; i++ {
+      go Read(&count)
+    }
+    wait.Done()
+  }()
+  // 等待子协程结束
+  wait.Wait()
+  fmt.Println("最终结果", count)
+}
+
+func Read(i *int) {
+  time.Sleep(time.Millisecond * time.Duration(rand.Intn(500)))
+  rw.RLock()
+  fmt.Println("拿到读锁")
+
+  // 条件不满足就一直阻塞
+  for *i < 3 {
+    // 阻塞并释放锁
+    cond.Wait()
+    // 被唤醒时，自动获取锁
+  }
+  time.Sleep(time.Millisecond * time.Duration(rand.Intn(1000)))
+  fmt.Println("释放读锁", *i)
+  rw.RUnlock()
+  wait.Done()
+}
+
+func Write(i *int) {
+  time.Sleep(time.Millisecond * time.Duration(rand.Intn(1000)))
+  rw.Lock()
+  fmt.Println("拿到写锁")
+  temp := *i
+  time.Sleep(time.Millisecond * time.Duration(rand.Intn(1000)))
+  *i = temp + 1
+  fmt.Println("释放写锁", *i)
+  rw.Unlock()
+  // 唤醒所有因条件变量阻塞的协程
+  cond.Broadcast()
+  wait.Done()
+}
+```
+
+**输出**
+
+```textile
+拿到读锁
+拿到读锁
+拿到读锁
+拿到读锁
+拿到写锁
+释放写锁 1
+拿到读锁
+拿到写锁
+释放写锁 2
+拿到读锁
+拿到读锁
+拿到写锁
+释放写锁 3 // 第三个写协程执行完毕
+释放读锁 3
+释放读锁 3
+释放读锁 3
+释放读锁 3
+释放读锁 3
+释放读锁 3
+释放读锁 3
+最终结果 3
+```
+
+### sync标准库
+
+> Go 中很大一部分的并发相关的工具都是 `sync` 标准库提供的，上述已经介绍过了 `sync.WaitGroup`，`sync.Locker` 等，除此之外，`sync` 包下还有一些其他的工具可以使用。
+
+#### Once
+
+> 当在使用一些数据结构时，如果这些数据结构太过庞大，可以考虑采用懒加载的方式，即真正要用到它的时候才会初始化该数据结构。如下面的例子
+
+```go
+type MySlice []int
+
+func (m *MySlice) Get(i int) (int, bool) {
+   if *m == nil {
+      return 0, false
+   } else {
+      return (*m)[i], true
+   }
+}
+
+func (m *MySlice) Add(i int) {
+   // 当真正用到切片的时候，才会考虑去初始化
+   if *m == nil {
+      *m = make([]int, 0, 10)
+   }
+   *m = append(*m, i)
+}
+```
+
+> 果有多个协程访问的话就可能会出现问题了。可能会出现重复初始化导致数据覆盖问题。
+> 
+> 这就是 `sync.Once` 要解决的问题，顾名思义，`Once` 译为一次，`sync.Once` 保证了在并发条件下指定操作只会执行一次。它的使用非常简单，只对外暴露了一个 `Do` 方法，签名如下：
+
+```go
+func (o *Once) Do(f func())
+```
+
+> 在使用时，只需要将初始化操作传入 `Do` 方法即可，如下：
+
+```go
+var wait sync.WaitGroup
+
+func main() {
+  var slice MySlice
+  wait.Add(4)
+  for i := 0; i < 4; i++ {
+    go func() {
+      slice.Add(1)
+      wait.Done()
+    }()
+  }
+  wait.Wait()
+  fmt.Println(slice.Len())
+}
+
+type MySlice struct {
+  s []int
+  o sync.Once
+}
+
+func (m *MySlice) Get(i int) (int, bool) {
+  if m.s == nil {
+    return 0, false
+  } else {
+    return m.s[i], true
+  }
+}
+
+func (m *MySlice) Add(i int) {
+  // 当真正用到切片的时候，才会考虑去初始化
+  m.o.Do(func() {
+    fmt.Println("初始化")
+    if m.s == nil {
+      m.s = make([]int, 0, 10)
+    }
+  })
+  m.s = append(m.s, i)
+}
+
+func (m *MySlice) Len() int {
+  return len(m.s)
+}
+```
+
+#### Map
+
+> `sync.Map` 是官方提供的一种并发安全 Map 的实现，开箱即用，使用起来十分的简单，下面是该结构体对外暴露的方法：
+
+```go
+// 根据一个key读取值，返回值会返回对应的值和该值是否存在
+func (m *Map) Load(key any) (value any, ok bool)
+
+// 存储一个键值对
+func (m *Map) Store(key, value any)
+
+// 删除一个键值对
+func (m *Map) Delete(key any)
+
+// 如果该key已存在，就返回原有的值，否则将新的值存入并返回，当成功读取到值时，loaded为true，否则为false
+func (m *Map) LoadOrStore(key, value any) (actual any, loaded bool)
+
+// 删除一个键值对，并返回其原有的值，loaded的值取决于key是否存在
+func (m *Map) LoadAndDelete(key any) (value any, loaded bool)
+
+// 遍历Map，当f()返回false时，就会停止遍历
+func (m *Map) Range(f func(key, value any) bool)
+```
+
+**并发使用Map并出错的示例**
+
+```go
+func main() {
+  myMap := make(map[int]int, 10)
+  var wait sync.WaitGroup
+  wait.Add(10)
+  for i := 0; i < 10; i++ {
+    go func(n int) {
+      for i := 0; i < 100; i++ {
+        myMap[n] = n
+      }
+      wait.Done()
+    }(i)
+  }
+  wait.Wait()
+}
+```
+
+> 上例中使用的普通 map，开了 10 个协程不断的存入数据，显然这很可能会触发 fatal，结果大概率会如下
+> 
+> `fatal error: concurrent map writes`
+
+**解决**
+
+> 使用 `sync.Map` 就可以避免这个问题
+
+```go
+func main() {
+  var syncMap sync.Map
+  var wait sync.WaitGroup
+  wait.Add(10)
+  for i := 0; i < 10; i++ {
+    go func(n int) {
+      for i := 0; i < 100; i++ {
+        syncMap.Store(n, n)
+      }
+      wait.Done()
+    }(i)
+  }
+  wait.Wait()
+  syncMap.Range(func(key, value any) bool {
+    fmt.Println(key, value)
+    return true
+  })
+}
 ```
 
 ## 反射
@@ -1863,9 +2615,31 @@ reflectStruct(s)
 
 ## 文件操作
 
-### 读取文件
+> Go 语言提供文件处理的标准库大致以下几个：
+> 
+> * `os`库，负责 OS 文件系统交互的具体实现。作用：打开文件，获取文件句柄
+> * `io`库，读写 IO 的抽象层。作用：通过文件句柄，进行读写操作
+> * `fs`库，文件系统的抽象层
 
-#### 1. 读取文件方式一
+### 打开文件
+
+> 常见的两种打开文件的方式是使用`os`包提供的两个函数：
+> 
+> - `Open`函数
+> 
+> - `OpenFile`函数
+> 
+> <mark>注意：</mark>打开文件后，要记得关闭文件，使用`file.Close()`
+
+```go
+func Open(name string) (*File, error)
+// 参数1：路径
+// 参数2：模式
+// 参数3：权限
+func OpenFile(name string, flag int, perm FileMode) (*File, error) 
+```
+
+**使用Open打开文件**
 
 > 使用 `os.Open()` 方法读取文件
 
@@ -1905,7 +2679,93 @@ func main() {
 }
 ```
 
-> 可以使用 `os.ReadFile()` 读取整个文件，这个方法在 `1.16`之前在`ioutil`这个包下，现在整合到 `os` 包下了
+> <mark>注意：</mark>`os.Open()` 打开的文件是只读的，实际上它是`OpenFile`的封装
+
+```go
+func Open(name string) (*File, error) {
+	return OpenFile(name, O_RDONLY, 0)
+}
+```
+
+**使用OpenFile打开文件**
+
+> `OpenFile`函数可以控制更多细节，例如修改文件描述符和文件权限。
+> 
+> 对于文件描述符（模式），`os`包下提供了以下常量以供使用。
+
+```go
+const (
+   // 只读，只写，读写 三种必须指定一个
+   O_RDONLY int = syscall.O_RDONLY // 以只读的模式打开文件
+   O_WRONLY int = syscall.O_WRONLY // 以只写的模式打开文件
+   O_RDWR   int = syscall.O_RDWR   // 以读写的模式打开文件
+   // 剩余的值用于控制行为
+   O_APPEND int = syscall.O_APPEND // 当写入文件时，将数据添加到文件末尾
+   O_CREATE int = syscall.O_CREAT  // 如果文件不存在则创建文件
+   O_EXCL   int = syscall.O_EXCL   // 与O_CREATE一起使用, 文件必须不存在
+   O_SYNC   int = syscall.O_SYNC   // 以同步IO的方式打开文件
+   O_TRUNC  int = syscall.O_TRUNC  // 当打开的时候截断可写的文件
+)
+```
+
+> 关于文件权限的则提供了以下常量。
+
+```go
+const (
+   ModeDir        = fs.ModeDir        // d: 目录
+   ModeAppend     = fs.ModeAppend     // a: 只能添加
+   ModeExclusive  = fs.ModeExclusive  // l: 专用
+   ModeTemporary  = fs.ModeTemporary  // T: 临时文件
+   ModeSymlink    = fs.ModeSymlink    // L: 符号链接
+   ModeDevice     = fs.ModeDevice     // D: 设备文件
+   ModeNamedPipe  = fs.ModeNamedPipe  // p: 具名管道 (FIFO)
+   ModeSocket     = fs.ModeSocket     // S: Unix 域套接字
+   ModeSetuid     = fs.ModeSetuid     // u: setuid
+   ModeSetgid     = fs.ModeSetgid     // g: setgid
+   ModeCharDevice = fs.ModeCharDevice // c: Unix 字符设备, 前提是设置了 ModeDevice
+   ModeSticky     = fs.ModeSticky     // t: 黏滞位
+   ModeIrregular  = fs.ModeIrregular  // ?: 非常规文件
+
+   // 类型位的掩码. 对于常规文件而言，什么都不会设置.
+   ModeType = fs.ModeType
+
+   ModePerm = fs.ModePerm // Unix 权限位, 0o777
+)
+```
+
+> 下面是一个例子：以读写模式打开一个文件，权限为`0666`，表示为所有人都可以对该文件进行读写，且不存在时会自动创建。
+
+```go
+func main() {
+  file, err := os.OpenFile("README.txt", os.O_RDWR|os.O_CREATE, 0666)
+  if os.IsNotExist(err) {
+    fmt.Println("文件不存在")
+  } else if err != nil {
+    fmt.Println("文件访问异常")
+  } else {
+    fmt.Println("文件打开成功", file.Name())
+    file.Close()
+  }
+}
+```
+
+### 读取文件
+
+> 打开文件后，就可以对文件进行读写了，这里介绍文件读取。
+> 
+> `*os.File`类型提供了以下几个公开的方法来流式读取文件。
+
+```go
+// 将文件读进传入的字节切片
+func (f *File) Read(b []byte) (n int, err error)
+
+// 相较于第一种可以从指定偏移量读取
+func (f *File) ReadAt(b []byte, off int64) (n int, err error)
+```
+
+**`os.ReadFile()` 读取文件**
+
+> 还可以使用 `os.ReadFile()` 读取整个文件，这个方法不需要`File`类型对象，这个方法在 `1.16`之前在`ioutil`这个包下，现在整合到 `os` 包下了
 
 ```go
 func ioU()  {
@@ -1919,7 +2779,34 @@ func ioU()  {
 }
 ```
 
-#### 2. 读取文件方式二
+**`io.ReadAll`函数读取文件**
+
+> `io`包下的`ReadAll`函数也可以读取整个文件，不过对于`io.ReadAll`而言，则需要提供一个`io.Reader`类型的实现，`os.File`类型实现了`io.Reader`
+
+```go
+// 函数签名
+func ReadAll(r Reader) ([]byte, error)
+
+// 使用案例
+func main() {
+
+   file, err := os.OpenFile("README.txt", os.O_RDWR|os.O_CREATE, 0666)
+   if err != nil {
+      fmt.Println("文件访问异常")
+   } else {
+      fmt.Println("文件打开成功", file.Name())
+      bytes, err := io.ReadAll(file)
+      if err != nil {
+         fmt.Println(err)
+      } else {
+         fmt.Println(string(bytes))
+      }
+      file.Close()
+   }
+}
+```
+
+
 
 > 使用 `bufio` 读取文件
 
@@ -1955,70 +2842,93 @@ func bufR() {
 
 ### 写入文件
 
-#### 1. 写入文件方式一
+> 打开文件后获取的`os.File`结构体提供了以下几种方法以供写入数据
 
-> `os.OpenFile()` 方法参数：
+```go
+// 写入字节切片
+func (f *File) Write(b []byte) (n int, err error)
+
+// 写入字符串
+func (f *File) WriteString(s string) (n int, err error)
+
+// 从指定位置开始写，当以os.O_APPEND模式打开时，会返回错误
+func (f *File) WriteAt(b []byte, off int64) (n int, err error)
+```
+
+> <mark>注意：</mark>如果想要对一个文件写入数据，则必须以`O_WRONLY`或`O_RDWR`的模式打开，否则无法成功写入文件。
 > 
-> - 第一个参数：是要写入文件地址，可以是绝对地址也可以是相对地址
-> - 第二个参数：是写入的模式
-> - 第三个参数：`perm` 是文件权限，具体参考 linux 文件权限，这里使用 0666
-
-| 模式          | 说明   |
-| ----------- | ---- |
-| os.O_WRONLY | 只写   |
-| os.O_CREATE | 创建文件 |
-| os.O_RDONLY | 只读   |
-| os.O_RDWR   | 读写   |
-| os.O_TRUNC  | 清空   |
-| os.O_APPEND | 追加   |
-
-> 不同模式可以组合，例如 `os.O_CREATE|os.O_WRONLY|os.O_TRUNC`
+> 下面是一个以`os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_TRUNC`模式打开文件，且权限为`0666`向指定写入数据的例子
 
 ```go
-func osW() {
-    // 创建这个文件、只对这个文件写入、清空这个文件
-    file, err := os.OpenFile("../test1.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-    defer func ()  {    // 关闭文件
-        if file.Close() != nil {
-            fmt.Println("文件关闭失败!")
-        }
-    }()
-    if err != nil {
-        fmt.Println("文件打开失败!")
-        return
+func main() {
+  file, err := os.OpenFile("README.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_TRUNC, 0666)
+  if err != nil {
+    fmt.Println("文件访问异常")
+  } else {
+    fmt.Println("文件打开成功", file.Name())
+    for i := 0; i < 5; i++ {
+      offset, err := file.WriteString("hello world!\n")
+      if err != nil {
+        fmt.Println(offset, err)
+      }
     }
-    // 写入文件，写入字符串
-    file.WriteString("这是写入的数据!\n")
-    for i := 0; i < 10; i++ {
-        file.WriteString(fmt.Sprintf("用for循环写入的数据%d\n", i))
-    }
-    // 写入文件，写入字符切片
-    byteStr := make([]byte, 0 , 1)
-    byteStr = append(byteStr, 'a', 'd', 'd')
-    file.Write(byteStr)
+    fmt.Println(file.Close())
+  }
 }
 ```
 
-> 可以使用 `os.WriteFile()` 写入文件，这个方法在 `1.16`之前在`ioutil`这个包下，现在整合到 `os` 包下了
+**`os.WriteFile`写入文件**
 
-> 第一个参数是：文件地址
-> 第二个参数是：要写入的字节切片
-> 第三个参数是：文件权限，参考 Linux 文件权限，这里用 0666
+> 函数签名如下
 
 ```go
-func ioW() {
-    str := "golang冲冲冲!!!"
-    err := os.WriteFile("../test3.txt", []byte(str), 0666)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
+func WriteFile(name string, data []byte, perm FileMode) error
+```
+
+> 案例
+
+```go
+func main() {
+  err := os.WriteFile("README.txt", []byte("hello world!\n"), 0666)
+  if err != nil {
+    fmt.Println(err)
+  }
 }
 ```
 
-#### 2. 写入文件方式二
+**`io.WriteString`写入文件**
 
-> 使用 `bufio.NewWriter()` 方法写入文件，==这个方法会先写入缓存，注意将缓存冲入到文件中。==
+> `io.WriteString`需要实现`io.Writer`接口的类型，文件句柄`os.File`已经实现该类型。
+> 
+> 函数签名
+
+```go
+func WriteString(w Writer, s string) (n int, err error)
+```
+
+> 案例
+
+```go
+func main() {
+   file, err := os.OpenFile("README.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_TRUNC, 0666)
+   if err != nil {
+      fmt.Println("文件访问异常")
+   } else {
+      fmt.Println("文件打开成功", file.Name())
+      for i := 0; i < 5; i++ {
+         offset, err := io.WriteString(file, "hello world!\n")
+         if err != nil {
+            fmt.Println(offset, err)
+         }
+      }
+      fmt.Println(file.Close())
+   }
+}
+```
+
+**`bufio.NewWriter()` 方法写入文件**
+
+> 使用 `bufio.NewWriter()` 方法写入文件，<mark>这个方法会先写入缓存，注意将缓存冲入到文件中。</mark>
 
 ```go
 func bufW() {
@@ -2035,6 +2945,112 @@ func bufW() {
     iwriter := bufio.NewWriter(file)
     iwriter.WriteString("golang冲冲冲!!!")
     iwriter.Flush()    // 将缓存冲入文件
+}
+```
+
+**`os.Create`函数创建文件**
+
+> 函数`os.Create`函数用于创建文件，本质上也是对`OpenFile`的封装。
+
+```go
+func Create(name string) (*File, error) {
+   return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+}
+```
+
+> <mark>注意：</mark>在创建一个文件时，如果其父目录不存在，将创建失败并会返回错误。
+
+### 复制文件
+
+> 对于复制文件而言，需要同时打开两个文件，实现思路是将原文件中的数据读取出来，然后写入目标文件中，代码示例如下
+
+```go
+func main() {
+    // 从原文件中读取数据
+  data, err := os.ReadFile("README.txt")
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+    // 写入目标文件
+  err = os.WriteFile("README(1).txt", data, 0666)
+  if err != nil {
+    fmt.Println(err)
+  } else {
+    fmt.Println("复制成功")
+  }
+}
+```
+
+> 也可以使用标准库提供的方法，下面介绍
+
+**`*os.File.ReadFrom`**
+
+> 打开文件时，一个只读，一个只写。
+
+```go
+// 函数签名
+func (f *File) ReadFrom(r io.Reader) (n int64, err error)
+
+// 案例
+func main() {
+  // 以只读的方式打开原文件
+  origin, err := os.OpenFile("README.txt", os.O_RDONLY, 0666)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  defer origin.Close()
+  // 以只写的方式打开副本文件
+  target, err := os.OpenFile("README(1).txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  defer target.Close()
+  // 从原文件中读取数据，然后写入副本文件
+  offset, err := target.ReadFrom(origin)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  fmt.Println("文件复制成功", offset)
+}
+```
+
+> 这种复制方式需要先将源文件的全部内容读取到内存中，再写入目标文件，文件特别大的时候不建议这么做。
+
+**`io.Copy`**
+
+> 一边读一边写，先将内容读到缓冲区中，再写入到目标文件中，缓冲区默认大小为 32KB。
+
+```go
+// 函数签名
+func Copy(dst Writer, src Reader) (written int64, err error)
+
+// 案例
+func main() {
+  // 以只读的方式打开原文件
+  origin, err := os.OpenFile("README.txt", os.O_RDONLY, 0666)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  defer origin.Close()
+  // 以只写的方式打开副本文件
+  target, err := os.OpenFile("README(1).txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  defer target.Close()
+  // 复制
+  written, err := io.Copy(target, origin)
+  if err != nil {
+    fmt.Println(err)
+  } else {
+    fmt.Println(written)
+  }
 }
 ```
 
@@ -2063,9 +3079,38 @@ func mkDir()  {
 
 > `os.RemoveAll()` 删除多个文件
 
+```go
+// 删除单个文件或者空目录，当目录不为空时会返回错误
+func Remove(name string) error
+
+// 删除指定目录的所有文件和目录包括子目录与子文件
+func RemoveAll(path string) error
+```
+
 ### 重命名
 
-> `os.Rename()`
+> `os.Rename()`，重命名也可以理解为移动文件，该函数对于文件夹也是同样的效果。
+
+```go
+// 函数签名
+func Rename(oldpath, newpath string) error
+
+// 案例
+func main() {
+  err := os.Rename("README.txt", "readme.txt")
+  if err != nil {
+    fmt.Println(err)
+  } else {
+    fmt.Println("重命名成功")
+  }
+}
+```
+
+### 文件夹
+
+> 文件夹操作与对文件的操作类似
+
+
 
 ## 泛型
 
@@ -2121,6 +3166,785 @@ c := Container[int]{
 }
 ```
 
+## Go标准库
+
+### 字符串工具库 --- strings
+
+> 包 `strings` 实现了简单的函数来操作 UTF-8 编码的字符串，简单来说就是操作字符串的工具包。
+> 
+> 下面的介绍并不包括所有工具
+
+#### 复制字符串
+
+> 将会分配一个新的内存给复制的副本，如果传入一个空字符串，则不会分配内存且返回空字符串。
+
+```go
+func Clone(s string) string
+```
+
+> 案例
+
+```go
+func Learn() {
+	s1 := "美丽的世界"
+	s2 := strings.Clone(s1)
+	fmt.Println(s1, s2)
+	fmt.Println(&s1, &s2)
+}
+// 输出
+美丽的世界 美丽的世界
+0x193a56e6e070 0x193a56e6e080    // 不相等
+```
+
+#### 包含字符串
+
+**`Contains`**
+
+> 判断一个字符串 s 是不是包含一个子串 substr
+
+```go
+func Contains(s, substr string) bool
+```
+
+> 案例
+
+```go
+func Learn() {
+	s1 := "美丽的世界"
+	if strings.Contains(s1, "界") {
+		fmt.Println("包含")
+	}
+}
+// 输出
+包含
+```
+
+**`ContainsAny`**
+
+> 判断字符串 chars 内任意字符的 unicode 码是否在字符串 s 内，翻译一下就是 s 是否包含 chars 内的任意字符串
+
+```go
+func ContainsAny(s, chars string) bool
+```
+
+> 案例
+
+```go
+func Learn() {
+	fmt.Println(strings.ContainsAny("abcedfg", "bac"))
+	fmt.Println(strings.ContainsAny("abcedfg", "gfdecba"))
+}
+// 输出
+true
+true
+```
+
+**`ContainsRune`**
+
+> 判断字符串 s 内是否包含字符 r
+
+```go
+func ContainsRune(s string, r rune) bool
+```
+
+> 案例
+
+```go
+func TestContainsRune(t *testing.T) {
+   fmt.Println(strings.ContainsRune("abcedf", 'a'))
+   fmt.Println(strings.ContainsRune("abcedf", 'b'))
+   fmt.Println(strings.ContainsRune("你好世界", '你'))
+}
+```
+
+
+
+### Go 模板渲染语法
+
+> 通常我们会使用`fmt.Sprintf`函数来进行字符串格式化，但它只适用于处理小字符串的情况，而且需要使用格式化动词来指定类型，无法做到参数命名，不支持复杂情况下的处理，而这就是模板引擎所需要解决的问题。
+> 
+> 这里要讲述的主角是 go 内置的模板引擎库`text/template`，在实际开发中一般用的是`html/template`，后者基于前者并做了很多关于`HTML`的安全处理，一般情况使用前者即可，若是涉及到`HTML`的模板处理建议使用后者会更安全。
+
+#### 简单案例
+
+> 案例分析：
+> 
+> `template.New()`：根据给定的字符串分配一个模板，函数签名`New(name string) *Template`
+> 
+> `Parse()`：将字符串解析成模板，函数签名`Parse(text string) (*Template, error)`
+> 
+> `Execute()`：将数据应用到模板，函数签名`Execute(wr io.Writer, data any) error`
+
+```go
+package main
+
+import (
+  "fmt"
+  "os"
+  "text/template"
+)
+
+func main() {
+  tmpl := `This is the first template string, {{ .message }}`
+
+  te, err := template.New("texTmpl").Parse(tmpl)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+
+  data := map[string]any{
+    "message": "hello world!",
+  }
+  execErr := te.Execute(os.Stdout, data)
+  if execErr != nil {
+    fmt.Println(err)
+  }
+}
+```
+
+> 输出为：
+
+```textile
+This is the first template string, hello world!
+```
+
+#### 模板语法
+
+##### 参数
+
+> go 通过两对花括号`{{ }}`，来在模板中表示这是一个模板参数，通过`.`来表示根对象，根对象就是传入的`data`。就像是访问一个类型的成员变量一样，通过`.`符号衔接变量名就可以在模板中访问对应的值，例如
+
+```go
+{{ .data }}
+```
+
+> 对于传入的`data`，一般是结构体或者`map`，也可以是基本类型，比如数字字符串，这时`.`所代表的根对象就是其自身。
+> 
+> <mark>注意：如果是结构体需要把字段大写，这样才能导出到模板中使用</mark>
+> 
+> 在花括号内，不一定非得去访问根对象来获取值，也可以是基本类型的字面量，例如：
+
+```go
+{{ 1 }}
+{{ 3.14 }}
+{{ "jack" }}
+```
+
+> 不管根对象是什么类型，`{{ . }}`效果类似`fmt.Sprintf("%s", val)`，下面的例子：
+
+```go
+func Templ2() {
+    tmpl := "data -> {{ . }}\n"
+    data := []any{
+        1,
+        "sdd",
+        map[string]any{
+            "msg": 345,
+        },
+    }
+    te, err := template.New("tmpl2").Parse(tmpl)
+    if err != nil {
+        return
+    }
+    for _, val := range data {
+        err = te.Execute(os.Stdout, val)
+        if err != nil {
+            return
+        }
+    }
+}
+```
+
+> 输出
+
+```textile
+data -> 1
+data -> sdd
+data -> map[msg:345]
+```
+
+> 对于切片和`map`，并没有提供特定语法来访问某一个索引的值，但可以通过函数调用的方式来实现，如下所示：
+
+```go
+func Templ3() {
+    // index 是模板函数，接受两个参数
+    // 参数1：切片或map
+    // 参数2：索引
+    tmpl := "data -> {{ index . 1 }}\n"
+    datas := []any{
+        []any{"first", "second"},
+        map[int]any{1: "first"},
+    }
+    te, err := template.New("tmpl2").Parse(tmpl)
+    if err != nil {
+        return
+    }
+    for _, val := range datas {
+        err = te.Execute(os.Stdout, val)
+        if err != nil {
+            return
+        }
+    }
+}
+// 输出
+// data -> second
+// data -> first
+```
+
+> 对于嵌套的结构体或 map，可以使用`.k1.k2.k3`这种方式访问，例如：
+
+```go
+{{ .person.father.name }}
+```
+
+> 在使用模板参数时，可以在参数前后加上`-`符号来消除参数前后的空白，看个例子：
+
+```go
+func main() {
+  out := os.Stdout
+
+  tmpl := `{{ .x }} {{ - .op - }} {{ .y }}`
+
+  datas := []any{
+    map[string]any{"x": "10", "op": ">", "y": "2"},
+  }
+
+  for _, data := range datas {
+    err := ExecTmpl(out, tmpl, data)
+    if err != nil {
+      panic(err)
+    }
+  }
+}
+```
+
+> 正常来说输出结果应该是`10 > 2`，但由于在`op`参数前后添加了`-`符号，所以它前后的空白符都会被消除，所以实际输出为`10>2`
+> 
+> 注意：`-`符号需要和参数保持空格以作区分，`-`符号也会消除`\n`的作用
+
+##### 注释
+
+> 模板语法支持注释，注释并不会在最终的模板中生成，其语法如下：
+
+```go
+{{/* this is a comment */}}
+```
+
+##### 变量
+
+> 在模板中也可以声明变量，通过`$`符号来表示这是一个变量，并通过`:=` 来进行赋值，就跟 go 代码一样，例子如下：
+
+```go
+{{ $name := .Name }}
+{{ $val := index . 1 }}
+{{ $val := index .dict key }}
+// 整型赋值
+{{ $numer := 1 }}
+// 浮点数赋值
+{{ $float := 1.234}}
+// 字符串赋值
+{{ $name := "jack" }}
+```
+
+> 在后续使用时，通过`$`衔接变量名来访问该变量的值，比如：
+
+```go
+func Templ4() {
+    tmpl := "{{ $name := .Name }} data -> {{ $name }}\n"
+    data := struct{ Name string }{Name: "ddw"}
+    te, err := template.New("tmpl4").Parse(tmpl)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    err = te.Execute(os.Stdout, data)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+}
+// 输出
+data -> ddw
+```
+
+##### 函数
+
+> 模板自身的语法其实并不多，大多数功能都是通过函数来实现的，函数调用的格式为函数名后衔接参数列表，以空格为分隔符，如下所示：
+
+```go
+{{ funcname arg1 arg2 arg3 ... }}
+```
+
+> 例如之前用到的`index`函数
+
+```go
+{{ index .s 1 }}
+```
+
+> 用于比较是否相等的函数`eq`函数
+
+```go
+{{ eq 1 2 }}
+```
+
+> 每一个`*Template`都有一个`FuncsMap`，用于记录函数的映射，也可以通过这个map来挂载自己函数
+
+```go
+type FuncMap map[string]any
+```
+
+> 下面是内置的所有函数：
+
+| 函数名        | 作用               | 示例                      |
+| ---------- | ---------------- | ----------------------- |
+| `and`      | 与运算              | `{{ and true false }}`  |
+| `or`       | 或运算              | `{{ or true false }}`   |
+| `not`      | 取反运算             | `{{ not true }}`        |
+| `eq`       | 是否相等             | `{{ eq 1 2 }}`          |
+| `ne`       | 是否不相等            | `{{ ne 1 2 }}`          |
+| `lt`       | 小于               | `{{ lt 1 2 }}`          |
+| `le`       | 小于等于             | `{{ le 1 2 }}`          |
+| `gt`       | 大于               | `{{ gt 1 2 }}`          |
+| `ge`       | 大于等于             | `{{ ge 1 2 }}`          |
+| `len`      | 返回长度             | `{{ len .slice }}`      |
+| `index`    | 获取目标指定索引的元素      | `{{ index . 0 }}`       |
+| `slice`    | 切片，等价于 s[1\:2:3] | `{{ slice . 1 2 3 }}`   |
+| `html`     | HTML 转义          | `{{ html .name }}`      |
+| `js`       | js 转义            | `{{ js .name }}`        |
+| `print`    | fmt.Sprint       | `{{ print . }}`         |
+| `printf`   | fmt.Sprintf      | `{{ printf "%s" .}}`    |
+| `println`  | fmt.Sprintln     | `{{ println . }}`       |
+| `urlquery` | url query 转义     | `{{ urlquery .query }}` |
+
+> 除了这些之外，还有一个比较特殊的内置函数`call`，它是用于直接调用通过在`Execute`时期传入的`data`中的函数，例如：
+
+```go
+func Templ5() {
+    tmpl := "Name is: {{ call .Sayhi .Name }}"
+    data := struct {
+        Name  string
+        Sayhi func(string) string
+    }{Name: "ddw", Sayhi: func(s string) string { return s }}
+    te, err := template.New("tmpl4").Parse(tmpl)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    err = te.Execute(os.Stdout, data)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+}
+// 输出
+Name is: ddw
+```
+
+> 这是自定义函数的途径之一，不过通常建议使用`*Template.Funcs`方法来添加自定义函数，因为后者可以作用全局，不需要绑定到根对象中。
+> 
+> <mark>自定义函数的返回值一般有两个，第一个是需要用到的返回值，第二个是error。</mark>
+
+##### pipeline 管道
+
+> 任何能够产生数据的操作都称其为`pipeline`。下面的模板操作都属于管道操作：
+
+```go
+{{ 1 }}
+{{ eq 1 2 }}
+{{ $name }}
+{{ .name }}
+{{ $age := 20 }}
+```
+
+> 管道运算符`|`
+
+```go
+{{ $name := 1 }}{{ $name | print | printf "%s+1=?" }}
+```
+
+##### with
+
+> 通过`with`语句可以控制变量和根对象的作用域，格式如下
+
+```go
+{{ with pipeline }}
+  text
+{{ end }}
+```
+
+> `with`会检查管道操作返回的值，如果值为空的话，中间的`text`模板就不会生成。如果想要处理空的情况，可以使用`with else`，格式如下
+
+```go
+{{ with pipeline }}
+  text1
+{{ else }}
+  text2
+{{ end }}
+```
+
+> 如果管道操作返回的值为空，那么就会执行`else`这块的逻辑。在`with`语句中声明的变量，其作用域仅限于`with`语句内，看下面一个例子
+
+```go
+{{ $name := "mike" }}
+{{ with $name := "jack"  }}
+  {{- $name -}}  // "jack"
+{{ end }}
+{{- $name -}}   // "mike"
+```
+
+> 通过`with`语句还可以在作用域内改写根对象，如下
+
+```go
+{{ with .name }}
+  // 这里的 . 指的是 .name
+  name: {{- .second }}-{{ .first -}}    
+{{ end }}
+age: {{ .age }}
+address: {{ .address }}
+```
+
+##### 条件
+
+> 条件语句的格式如下所示
+
+```textile
+{{ if pipeline }}
+  text1
+{{ else if pipeline }}
+  text2
+{{ else }}
+  text3
+{{ end }}
+```
+
+> 几个简单的例子
+
+```textile
+{{ if eq .lang "en" }}
+  {{- .content.en -}}
+{{ else if eq .lang "zh" }}
+  {{- .content.zh -}}
+{{ else }}
+  {{- .content.fallback -}}
+{{ end }}
+```
+
+##### 迭代
+
+> 迭代语句的格式如下，`range`所支持的`pipeline`必须是数组，切片，`map`，以及`channel`。
+
+```textile
+{{ range pipeline }}
+  loop body
+{{ end }}
+```
+
+> 结合`else`使用，当长度为 0 时，就会执行`else`块的内容。
+
+```textile
+{{ range pipeline }}
+  loop body
+{{ else }}
+  fallback
+{{ end }}
+```
+
+> 除此之外，还支持`break`，`continue`这类操作，比如
+
+```textile
+{{ range pipeline }}
+  {{ if pipeline }}
+    {{ break }}
+  {{ end }}
+  {{ if pipeline }}
+    {{ continue }}
+  {{ end }}
+  loop body
+{{ end }}
+```
+
+> 简单案例
+
+```textile
+{{ range $index, $val := . }}
+  {{- if eq $index 0 }}
+    {{- continue -}}
+  {{ end -}}
+  {{- $index}}: {{ $val }}
+{{ end }}
+```
+
+> 传入数据
+
+```go
+[]any{1, "2", 3.14},
+// 输出
+1: 2
+2: 3.14
+```
+
+##### 嵌套
+
+> 一个模板中可以定义有多个模板，比如
+
+```textile
+{{ define "t1" }} t1 {{ end }}
+{{ define "t2" }} t2 {{ end }}
+```
+
+> 这些定义的模板在并不会生成在最终的模板中，除非在加载时指定了名称或者通过`ExecuteTemplate`语句手动指定。
+
+```go
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error
+```
+
+**案例**
+
+```go
+func main() {
+  out := os.Stdout
+
+  tmpl :=
+    `{{ define "t1" }}
+    {{- with .t1 }}
+      {{- .data -}}
+    {{ end -}}
+{{ end }}
+{{ define "t2" }}
+    {{- with .t2 }}
+      {{- .data -}}
+    {{ end}}
+{{ end -}}`
+
+  datas := []any{
+    map[string]any{
+      "t1": map[string]any{"data": "template body 1"},
+      "t2": map[string]any{"data": "template body 2"},
+    },
+  }
+
+  name := "t1"
+
+  for _, data := range datas {
+    err := ExecTmpl(out, tmpl, name, data)
+    if err != nil {
+      panic(err)
+    }
+  }
+}
+
+func ExecTmpl(writer io.Writer, tmpl string, name string, data any) error {
+  t := template.New("template")
+  parsedTmpl, err := t.Parse(tmpl)
+  if err != nil {
+    return err
+  }
+  return parsedTmpl.ExecuteTemplate(writer, name, data)
+}
+```
+
+> 输出
+
+```textile
+template body 1
+```
+
+##### 关联
+
+> 可以将A模板嵌套进B模板从而实现模板的模块化，这个A模板被称为子模版，通过下面模板语法实现关联：
+
+```textile
+{{ tempalte "子模版名" 传递给子模版的数据}}
+```
+
+> 父模板
+
+**案例**
+
+```go
+func main() {
+  tmpl1 := `name: {{ .name }}`
+
+  tmpl2 := `age: {{ .age }}`
+
+  tmpl3 := `Person Info
+{{template "t1" .}}
+{{template "t2" .}}`
+
+  t1, err := template.New("t1").Parse(tmpl1)
+  if err != nil {
+    panic(err)
+  }
+
+  t2, err := template.New("t2").Parse(tmpl2)
+  if err != nil {
+    panic(err)
+  }
+
+  t3, err := template.New("t3").Parse(tmpl3)
+  if err != nil {
+    panic(err)
+  }
+
+  if err := associate(t3, t1, t2); err != nil {
+    panic(err)
+  }
+
+  err = t3.Execute(os.Stdout, map[string]any{
+    "name": "jack",
+    "age":  18,
+  })
+  if err != nil {
+    panic(err)
+  }
+}
+
+func associate(t *template.Template, ts ...*template.Template) error {
+  for _, tt := range ts {
+    _, err := t.AddParseTree(tt.Name(), tt.Tree)
+    if err != nil {
+      return err
+    }
+  }
+  return nil
+}
+```
+
+##### 插槽
+
+> 通过`block`和`define`语句，可以实现类似 vue 插槽的效果，其目的是为了复用某一个模板。
+> 
+> **核心思想**：父模板使用 `{{block}}` 定义一个带默认内容的“占位符”，子模板通过 `{{define}}` 来“重写”这个块。
+
+**一个简单的案例**
+
+**1.定义父模板（layout.html）**:使用 `block` 定义可被替换的插槽，并提供默认内容
+
+```textile
+{{define "layout"}}
+<html>
+<head>
+    <title>{{block "title"}}默认标题{{end}}</title> <!-- 这是一个可被替换的“插槽” -->
+</head>
+<body>
+    <div id="content">
+        {{block "body"}}默认主体内容{{end}} <!-- 这是另一个“插槽” -->
+    </div>
+</body>
+</html>
+{{end}}
+```
+
+**2.定义子模板（page.html）**：使用 `define` 重新实现父模板中的同名块，实现“填充”
+
+```textile
+{{define "title"}}我的个人主页{{end}} <!-- 填充了 title 插槽 -->
+
+{{define "body"}}
+<h1>欢迎来到我的网站！</h1>
+<p>这里是具体内容。</p>
+{{end}}
+```
+
+**3.渲染**：在 Go 代码中，执行 `"layout"` 模板，并将子模板文件一起解析。
+
+```go
+// 同时解析父模板和子模板文件
+tmpl, err := template.ParseFiles("layout.html", "page.html")
+// 执行父模板
+err = tmpl.ExecuteTemplate(w, "layout", nil)
+```
+
+
+
+**另一种方式**
+
+**模板te1**
+
+```textile
+Basic Person Info
+name: {{ .name }}
+age: {{ .age }}
+address: {{ .address }}
+{{ block "slot" . }} default content body {{ end }}
+```
+
+**模板te2**
+
+```textile
+{{ template "person.txt" . }}
+{{ define "slot" }}
+school: {{ .school }}
+{{ end }}
+```
+
+**案例**
+
+```go
+func Templ7() {
+    tmpl1 := `Basic Person Info
+name: {{ .name }}
+age: {{ .age }}
+address: {{ .address }}
+{{ block "slot" . }} default content body {{ end }}`
+    templ2 := `{{ template "person.txt" . }}
+{{ define "slot" }}
+school: {{ .school }}
+{{ end }}`
+
+    te1, err := template.New("person.txt").Parse(tmpl1)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    te2, err := template.New("tem").Parse(templ2)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    // 将模板te1与模板te2联系起来
+    te, err := te2.AddParseTree(te1.Name(), te1.Tree)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    data := map[string]any{
+        "name":    "jack",
+        "age":     18,
+        "address": "usa",
+        "company": "google",
+        "school":  "mit",
+    }
+    te.Execute(os.Stdout, data)
+}
+```
+
+**输出**
+
+```textile
+Basic Person Info
+name: jack
+age: 18
+address: usa
+
+school: mit
+```
+
+##### 模板文件
+
+> 上面介绍语法时都是使用字符串作为模板，也可以将模板写入文件，再通过`template.ParseFS()`或`template.ParseFiles()`来读取文件获取模板
+
+
+
+
+
+
+
+
+
+
+
 ## 热重载
 
 > 每次修改代码就要重新go run一次很麻烦，可以使用第三方工具自动重新编译运行，这里介绍air工具
@@ -2145,11 +3969,11 @@ c := Container[int]{
 > 
 > Air会开始监听文件变化，一旦你保存了代码，它就会自动重启应用
 
-## Gin -- Go 网络框架
+# Gin -- Go 网络框架
 
 > Gin 是一个 go 编写的轻量级网络框架。
 
-### Gin 使用
+## Gin 使用
 
 > 安装 `go get "github.com/gin-gonic/gin"`
 
@@ -2176,9 +4000,9 @@ func main() {
 }
 ```
 
-### Gin 响应数据
+## Gin 响应数据
 
-#### String() 响应一个字符串
+### String() 响应一个字符串
 
 ```go
 // 使用
@@ -2198,7 +4022,7 @@ func main() {
 }
 ```
 
-#### JSON() 响应一个 json 数据( go 中的 map 类型)
+### JSON() 响应一个 json 数据( go 中的 map 类型)
 
 > map 字段的值为结构体时，可以用 tag 来定义要展示的名字
 
@@ -2221,11 +4045,11 @@ func main() {
 }
 ```
 
-#### JSONP() 用于解决跨域问题 -- 不推荐使用
+### JSONP() 用于解决跨域问题 -- 不推荐使用
 
 > 推荐使用 cors 中间件
 
-#### XML() 响应 xml 数据
+### XML() 响应 xml 数据
 
 ```go
 // 使用
@@ -2247,9 +4071,17 @@ func main() {
 }
 ```
 
-#### HTML() 响应 html 数据
+### HTML() 响应 html 数据
 
 > 需要先导入模板文件
+> 
+> `ctx.HTML()`：
+> 
+> - 第一个参数是请求路径
+> 
+> - 第二个参数是模板名，会去模板文件里查找`define 模板名`，如果找到加载这个模板，模板插槽根据`blob`和`define`自动进行
+> 
+> - 第三个参数是传递给模板的数据
 
 ```go
 // 使用
@@ -2275,11 +4107,9 @@ func main() {
 }
 ```
 
-==对于 go 模板渲染语法，我跳过了==
+## Gin 前端数据接收
 
-### Gin 接收前端传值
-
-#### 1. get 查询参数
+### get 查询参数
 
 `/user?uid=20&page=1`
 
@@ -2297,21 +4127,21 @@ func main() {
 
     // get 查询参数
     r.GET("/user", func(ctx *gin.Context) {
-        username := ctx.Query("username")
-        passwd := ctx.Query("passwd")
-        // 给查询参数设置默认值，如果没有传page参数，则page=1
-        page := ctx.DefaultQuery("page", "1")
-        ctx.HTML(200, "display.html", gin.H{
-            "data":   username,
-            "passwd": passwd,
-            "page":   page,
-        })
+        uid := ctx.Query("uid")
+        page := ctx.Query("page")
+        // 给查询参数设置默认值，如果没有传uname参数，则uname=ddw
+        uname := ctx.DefaultQuery("username", "ddw")
+        // ctx.HTML(200, "display.html", gin.H{
+        //    "data":   username,
+        //    "passwd": passwd,
+        //    "page":   page,
+        //})
     })
     r.Run() // listen and serve on localhost:8080
 }
 ```
 
-#### 2. 路径参数(动态路由传值)
+### 路径参数(动态路由传值)
 
 `/user/123`
 
@@ -2336,7 +4166,17 @@ func main() {
 }
 ```
 
-#### 3. post 请求传值
+### post 请求 表单参数
+
+> post表单的内容类型一般有`application/json`，`application/x-www-form-urlencoded`，`application/xml`，`multipart/form-data`。
+> 
+> **解析方法：**
+> 
+> - `PostForm`方法默认解析`application/x-www-form-urlencoded`和`multipart/form-data`类型的表单。
+> 
+> - `ShouldBindJSON`方法解析`application/json`和`multipart/form-data`类型绑定到结构体
+
+**案例一：解析`application/x-www-form-urlencoded`和`multipart/form-data`类型**
 
 ```go
 // 使用
@@ -2366,7 +4206,7 @@ func main() {
 }
 ```
 
-#### 将前端提交的数据绑定到结构体上
+**案例二：解析`application/json`类型**
 
 > 将前端传入的 `json` 数据绑定到结构体上，通过`tag` 和 `ctx.ShouldBindJSON` 实现
 
@@ -2405,7 +4245,110 @@ if err != nil {
 }
 ```
 
-### 路由分组及路由抽离
+## Gin 前端数据校验
+
+> `gin`内置的校验工具其实是`github.com/go-playground/validator/v10`，使用方法也几乎没有什么差别。
+> 
+> 这里只介绍一下在gin中如何进行数据校验和一些`validator`库中一些tag
+
+**简单示例**
+
+```go
+type LoginUser struct {
+    Name  string `json:"name" binding:"required,min=2,max=50"`
+    Email string `json:"email" binding:"required,email"`
+    Age   int    `json:"age" binding:"gte=18,lte=120"`
+    Phone string `json:"phone" binding:"required,len=11"`
+}
+
+func main() {
+   e := gin.Default()
+   e.POST("/register", Register)
+   log.Fatalln(e.Run(":8080"))
+}
+
+func Register(ctx *gin.Context) {
+   newUser := &LoginUser{}
+   if err := ctx.ShouldBind(newUser); err == nil {
+      ctx.String(http.StatusOK, "user%+v", *newUser)
+   } else {
+      ctx.String(http.StatusBadRequest, "invalid user,%v", err)
+   }
+}
+```
+
+> 上面示例中，`binding`标签后面跟的内容就是验证，当gin内对这个结构体进行绑定时会自动验证，如果验证不通过会报错。
+
+### 验证标签
+
+**特殊符号**
+
+| Tag       | Description           |
+| --------- | --------------------- |
+| 逗号( ,)    | 把多个验证标记隔开，隔开逗号之间不能有空格 |
+| 横线( - )   | 跳过该字段不验证              |
+| 竖线( \| )  | 使用多个验证标记，但是只需满足其中一个即可 |
+| required  | 表示该字段值必输设置，且不能为默认值    |
+| omitempty | 如果字段未设置，则忽略它          |
+
+**比较**
+
+| Tag   | Description |
+| ----- | ----------- |
+| `eq`  | 等于          |
+| `gt`  | 大于          |
+| `gte` | 大于等于        |
+| `lt`  | 小于          |
+| `lte` | 小于等于        |
+| `ne`  | 不等于         |
+
+**字段**
+
+| Tag             | Description                           |
+| --------------- | ------------------------------------- |
+| `eqcsfield`     | 在一个单独的结构中，验证当前字段的值是否等于由 param 的值指定的字段 |
+| `eqfield`       | 验证当前字段的值是否等于参数值指定的字段                  |
+| `fieldcontains` | 验证当前字段的值是否包含由参数值指定的字段                 |
+| `fieldexcludes` | 验证当前字段的值是否不包含由参数值指定的字段                |
+| `gtcsfield`     | 在一个单独的结构中，验证当前字段的值是否大于由参数的值指定的字段      |
+| `gtecsfield`    | 在一个单独的结构中，验证当前字段的值是否大于或等于由参数的值指定的字段   |
+| `gtefield`      | 验证当前字段的值是否大于或等于由参数值指定的字段              |
+| `gtfield`       | 验证当前字段的值是否大于由参数值指定的字段                 |
+| `ltcsfield`     | 在一个单独的结构中，验证当前字段的值是否小于由参数的值指定的字段      |
+| `ltecsfield`    | 在一个单独的结构中，验证当前字段的值是否小于等于由参数的值指定的字段    |
+| `ltefield`      | 验证当前字段的值是否小于或等于由参数值指定的字段              |
+| `ltfield`       | 验证当前字段的值是否小于由参数值指定的字段                 |
+| `necsfield`     | 验证当前字段的值不等于由参数的值指定的单独结构中的字段           |
+| `nefield`       | 验证当前字段的值是否不等于参数值指定的字段                 |
+
+**字符串**
+
+| Tag               | Description                     |
+| ----------------- | ------------------------------- |
+| `alpha`           | 验证当前字段的值是否是有效的字母                |
+| `alphanum`        | 验证当前字段的值是否是有效的字母数字              |
+| `alphanumunicode` | 验证当前字段的值是否是有效的字母数字 unicode 值    |
+| `alphaunicode`    | 验证当前字段的值是否是有效的字母 unicode 值      |
+| `ascii`           | 验证字段的值是否为有效的 ASCII 字符           |
+| `boolean`         | 验证当前字段的值是否为有效的布尔值或是否可以安全地转换为布尔值 |
+| `contains`        | 验证字段的值是否包含参数中指定的文本              |
+| `containsany`     | 验证字段的值是否包含参数中指定的任何字符            |
+| `containsrune`    | 验证字段的值是否包含参数中指定的符文              |
+| `endsnotwith`     | 验证字段的值不以参数中指定的文本结束              |
+| `endswith`        | 验证字段的值以参数中指定的文本结束               |
+| `excludes`        | 验证字段的值不包含参数中指定的文本               |
+| `excludesall`     | 验证字段的值不包含参数中指定的任何字符             |
+| `excludesrune`    | 验证字段的值不包含参数中指定的字符               |
+| `lowercase`       | 验证当前字段的值是否为小写字符串                |
+| `multibyte`       | 验证字段的值是否具有多字节字符                 |
+| `number`          | 验证当前字段的值是否为有效数字                 |
+| `numeric`         | 验证当前字段的值是否是有效的数值                |
+| `printascii`      | 验证字段的值是否是有效的可打印 ASCII 字符        |
+| `startsnotwith`   | 验证字段的值不是以参数中指定的文本开始             |
+| `startswith`      | 验证字段的值是否以参数中指定的文本开始             |
+| `uppercase`       | 验证当前字段的值是否为大写字符串                |
+
+## 路由分组及路由抽离
 
 > 将路由放在一个页面中很难管理，所以需要将路由分组抽离到其它文件中，这些文件存放再 routers 中。
 
@@ -2433,7 +4376,7 @@ func main() {
 }
 ```
 
-### 自定义控制器 -- 抽离业务逻辑
+## 自定义控制器 -- 抽离业务逻辑
 
 > 将上面的路由进一步分解，把路由中的回调函数抽取到 controller 中，再挂载到一个结构体上。
 
@@ -2466,13 +4409,13 @@ func AdminRouter(r *gin.Engine) {
 }
 ```
 
-### Gin 中间件
+## Gin 中间件
 
 > Gin 允许开发者在处理请求的过程中，加入用户自己的钩子(Hook)函数。这个钩子函数就叫中间件，中间件适合处理一些公共的业务逻辑，比如登录认证、权限校验、数据分页、记录日志、耗时统计等。
 
-> 在最后一个函数之前的都叫中间件，中间件可以有多个，响应处理函数也是一种中间件
+> 在最后一个函数之前的都叫中间件，中间件可以有多个，响应处理函数是主处理函数（类似一种中间件）
 
-#### 局部中间件
+### 局部中间件
 
 ```go
 r.GET("/user/", func(ctx *gin.Context){
@@ -2494,7 +4437,35 @@ r.GET("/user/", func(ctx *gin.Context){
 })
 ```
 
-#### 全局中间件
+**另一个案例**
+
+```go
+func MiddlewareA() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        fmt.Println("A 前")
+        c.Next()
+        fmt.Println("A 后")
+    }
+}
+
+func MiddlewareB() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        fmt.Println("B 前")
+        c.Next()
+        fmt.Println("B 后")
+    }
+}
+
+func MainHandler(c *gin.Context) {
+    fmt.Println("主处理函数")
+    c.JSON(200, gin.H{"msg": "ok"})
+}
+
+// 输出顺序：
+// A 前 -> B 前 -> 主处理函数 -> B 后 -> A 后
+```
+
+### 全局中间件
 
 > `Use`方法可以设置全局中间件
 
@@ -2508,9 +4479,9 @@ func initMiddle(c *gin.Context) {
 r.Use(initMiddle, middle2/*可以传入多个*/)
 ```
 
-#### 中间件之间的通信
+### 中间件之间的通信
 
-> 可以用 `Set` 来设置全局信息让其它中间件（==只能是在同一个 url 路由的中间件来使用==）来使用， `Get` 获取其它中间件设置的信息，抽离到其它文件也能用。
+> 可以用 `Set` 来设置全局信息让其它中间件（<mark>只能是在同一个 url 路由的中间件来使用</mark>）来使用， `Get` 获取其它中间件设置的信息，抽离到其它文件也能用。
 
 ```go
 r.GET("/set", func(ctx *gin.Context) {
@@ -2532,68 +4503,324 @@ r.GET("/set", func(ctx *gin.Context) {
     })
 ```
 
-#### 在中间件中使用 goroutine
+### 在中间件中使用 goroutine
 
-> 在中间件中使用 `goroutine` 时，==不能使用==原始的上下文(`ctx *gin.Context`)，必须使用其只读副本
+> 在中间件中使用 `goroutine` 时，<mark>不能使用</mark>原始的上下文(`ctx *gin.Context`)，必须使用其只读副本
 
 ```go
 // 获取只读副本
 cCp := ctx.Copy()
 ```
 
-### 自定义 Model -- 抽取公共代码
+## 自定义 Model -- 抽取公共代码
 
 > 如果项目比较复杂，可能不同的 Controller 中存在相同的业务逻辑，可以将不同的 Controller 中的相同业务逻辑抽离到 Model，以减少重复代码。
 
-### 文件上传
+## 文件传输
+
+> 文件传输分为上传和下载
+
+**单文件上传**
 
 > go 接收文件上传，使用 `file, err := ctx.FormFile()` 方法接收，使用 `ctx.SaveUploadedFile(file, "目录")` 来保存。
 
-### Gin 中的 Cookie
+```go
+func main() {
+  e := gin.Default()
+  e.POST("/upload", uploadFile)
+  log.Fatalln(e.Run(":8080"))
+}
+
+func uploadFile(ctx *gin.Context) {
+  // 获取文件
+  file, err := ctx.FormFile("file")
+  if err != nil {
+    ctx.String(http.StatusBadRequest, "%+v", err)
+    return
+  }
+  // 保存在本地
+  err = ctx.SaveUploadedFile(file, "./"+file.Filename)
+  if err != nil {
+    ctx.String(http.StatusBadRequest, "%+v", err)
+    return
+  }
+  // 返回结果
+  ctx.String(http.StatusOK, "upload %s size:%d byte successfully!", file.Filename, file.Size)
+}
+```
+
+**多文件上传**
+
+> 使用`ctx.MultipartForm()`来解析多文件表单
+
+```go
+func main() {
+   e := gin.Default()
+   e.POST("/upload", uploadFile)
+   e.POST("/uploadFiles", uploadFiles)
+   log.Fatalln(e.Run(":8080"))
+}
+
+func uploadFiles(ctx *gin.Context) {
+  // 获取gin解析好的multipart表单
+  form, _ := ctx.MultipartForm()
+  // 根据键值取得对应的文件列表
+  files := form.File["files"]
+  // 遍历文件列表，保存到本地
+  for _, file := range files {
+    err := ctx.SaveUploadedFile(file, "./"+file.Filename)
+    if err != nil {
+      ctx.String(http.StatusBadRequest, "upload failed")
+      return
+    }
+  }
+  // 返回结果
+  ctx.String(http.StatusOK, "upload %d files successfully!", len(files))
+}
+```
+
+**文件下载**
+
+> 文件下载使用`FileAttachment()`函数：
+> 
+> - 第一个参数，文件路径
+> 
+> - 第二个参数，用户保存文件时的文件名
+
+```go
+func (c *Context) FileAttachment(filepath, filename string)
+
+// 使用
+func main() {
+  e := gin.Default()
+  e.POST("/upload", uploadFile)
+  e.POST("/uploadFiles", uploadFiles)
+  e.GET("/download/:filename", download)
+  log.Fatalln(e.Run(":8080"))
+}
+
+func download(ctx *gin.Context) {
+    // 获取文件名
+  filename := ctx.Param("filename")
+    // 返回对应文件
+  ctx.FileAttachment(filename, filename)
+}
+```
+
+
+
+## Gin 中的 Cookie
 
 > Cookie: 是保存在用户设备上的，可以让用户同一个设备访问同一个网站时共享数据。
 
-#### 设置 cookie
+**设置 cookie**
 
-> `ctx.SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool)`
+```go
+ctx.SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool)
 
-- 第一个参数是： cookie 的 key
-- 第二个参数是：设置 key 的 value
-- 第三个参数是：过期时间。如果只想设置 cookie 的保存路径而不像设置存活时间，可以传入 nil
-- 第四个参数是：cookie 的路径
-- 第五个参数是：cookie 的路径 Domain 作用域，本地调试配置成 localhost，正式上线配置成域名
-- 第六个参数是：secure，当 secure 值为 true 时，cookie 在 http 中是无效的，在 https 中才有效
-- 第七个参数是：httpOnly，是微软对 cookie 做的扩展。如果在 cookie 中设置了"httpOnly"属性，则通过程序(js 等)将无法读取到 cookie 信息，防止 xss 攻击
+// 示例
+ctx.SetCookie("gin_cookie", "test", 3600, "/", "localhost", false, true)
+```
 
-#### 获取 cookie
+> * 第一个参数是： cookie 的 key
+> * 第二个参数是：设置 key 的 value
+> * 第三个参数是：过期时间。如果只想设置 cookie 的保存路径而不像设置存活时间，可以传入 nil
+> * 第四个参数是：cookie 的路径
+> * 第五个参数是：cookie 的路径 Domain 作用域，本地调试配置成 localhost，正式上线配置成域名
+> * 第六个参数是：secure，当 secure 值为 true 时，cookie 在 http 中是无效的，在 https 中才有效
+> * 第七个参数是：httpOnly，是微软对 cookie 做的扩展。如果在 cookie 中设置了"httpOnly"属性，则通过程序(js 等)将无法读取到 cookie 信息，防止 xss 攻击
+
+**获取 cookie**
 
 > `ctx.Cookie("cookie键名")`
 
-#### 删除 cookie
+**删除 cookie**
 
 > 与设置 cookie 相同，只是把时间设置为-1 或者把值设置为空字符串
 
-### Gin 中的 Session
+## Gin 中的 Session
 
 > session 是另一种记录客户状态的机制，不同的是 cookie 保存在客服端浏览器中，而 session 保存在服务器上。
 
-#### Session 的工作流程
+**Session 的工作流程**
 
 > 当客户端浏览器第一次访问服务器并发送请求时，服务器端会创建一个 `session` 对象，生成一个类似于 `key`，`value` 的键值对，然后将 `value` 保存到服务器，将 `key(cookie)`返回到浏览器。浏览器下次访问时会携带 `key(cookie)`，找到对应的 `session(value)`
 
-#### Gin 中使用 Session
+**Gin 中使用 Session**
 
 > Gin 官方没有 session，所以需要使用第三方模块。
 
-### context 上下文
+## JWT
 
-## GORM -- Go 的 orm 框架
+> JWT是服务端发完客户端的令牌，JWT 已经成为了现代服务端通信认证的主流方式之一，具有轻量，无状态的特点。
+
+### 工作原理
+
+> 在身份验证中，当用户使用凭据成功登录时，将返回一个 JSON Web 令牌。由于令牌是凭证，因此必须非常小心地防止出现安全问题。一般来说，令牌的保存时间不应超过所需的时间。然后无论何时用户想要访问受保护的路由和资源，在发起请求时就必须携带上 token，通常都是在请求头中的`Authorization` header 中的`Bearer schema`，例如下方：
+
+```textile
+Authorization: Bearer <token>
+```
+
+> 服务器在收到 JWT 后，会对其进行有效性验证，例如内容有篡改，token 已过期等等，如果验证通过就可以顺利的访问资源。虽然 JWT 中可以携带一些基本信息，但是依旧建议信息不要太大。
+
+### 结构
+
+> 在 RFC 标准中，JWT 由以下三个部分组成：
+> 
+> * Header 头部
+> * Payload 载荷
+> * Signature 签名
+> 
+> 然后每一个部分用一个点`.`来分隔，最后组成一个字符串，格式就是`header.payload.signature`吗，这就是一个 JWT 令牌的标准结构，接下来就一个个讲解每个结构的作用。
+
+#### 头部
+
+> 头部只是声明一些基本信息，通常由两部分组成，令牌的类型，和签名所使用的加密算法，例如下方：
+
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+```
+
+> 以上的信息大致就是，令牌的类型为 JWT，签名部分所使用的加密算法为 HS256，最后再将 JSON 对象通过`Base64Url`编码成字符串，该字符串就是 JWT 的头部。
+
+#### 载荷
+
+> JWT 的第二部分是载荷部分，主要包含声明(`claims`)部分，声明部分通常是关于一个实体的数据，比如一个`用户id`。
+> 
+> 关于声明的类型总共有三种：
+> 
+> * `reigstered`注册声明：`Registered claims`代表着 一些预定义的声明，一些并不强制使用但是仍然推荐使用，例如：`iss`(issuer 签发者)，`exp`(expiration time 过期时间) ，`iat`(签发时间)，`sud`(用户主体)。
+> * `public`公共声明：`Public claims`是可以由使用 JWT 的人随意定义的，最好要避免和其他声明部分冲突。
+> * `private claims`私有声明：这部分的声明同样也是自定义的，通常用于在服务双方共享一些信息，如：{"user_id": 1001, "role":"vip"}。
+
+```json
+{
+  // 标准声明
+  "iss": "auth.myapp.com",
+  "sub": "user-1001",
+  "aud": "myapp-api",
+  "exp": 1735689600,
+  "iat": 1735686000,
+  "jti": "550e8400-e29b-41d4-a716-446655440000",
+
+  // 自定义声明
+  "user_id": 1001,
+  "username": "张三",
+  "email": "zhangsan@example.com",
+  "role": "admin",
+  "avatar_url": "https://cdn.myapp.com/avatars/1001.jpg"
+}
+```
+
+> 该 JSON 对象将会通过`Base64Url`被编码成字符串，从而组成 JWT 的第二部分。
+> 
+> <mark>注意：该部分不会被加密，不能放敏感信息</mark>
+
+#### 签名
+
+> 在获得了编码的头部和编码的载荷部分后，就可以通过头部所指明的签名算法根据前两个部分的内容再加上密钥进行加密签名，所以一旦 JWT 的内容有任何变化，解密时得到的签名都会不一样，同时如果是使用私钥，也可以对 JWT 的签发者进行验证。
+
+```textile
+sign = HMACSHA256(
+  base64UrlEncode(header) + "." +
+  base64UrlEncode(payload),
+  secret)
+```
+
+> 最后得到的输出就是一个由三个`base64Url`字符串组成且由`.`分隔的字符串，大概长下面这样
+
+```textile
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.
+eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.
+cThIIoDvwdueQB468K5xDc5633seEFoqwxjF_xSJyQQ
+```
+
+### 选择签名算法
+
+> 可用的签名算法有好几种，在使用之前应该先了解下它们之间的区别以便更好的去选择签名算法，它们之间最大的不同就是**对称加密**和**非对称加密**
+> 
+> 不同的签名算法所需要的密钥的类型也不同，下面给出一些常见签名算法的类型：
+> 
+> * `HMAC`：对称加密，需要类型`[]byte`的值用于签名和验证。 (`HS256`,`HS384`,`HS512`)
+> * `RSA`：非对称加密，需要`*rsa.PrivateKey`类型的值用于签名，和`*rsa.PublicKey`类型的值用于验证。(`RS256`,`RS384`,`RS512`)
+> * `ECDSA`：非对称加密，需要`*ecdsa.PrivateKey`类型的值用于签名，和`*ecdsa.PublicKey`类型的值用于验证。(`ES256`,`ES384`,`ES512`)
+> * `EdDSA`：非对称加密，需要`ed25519.PrivateKey`类型的值用于签名和`ed25519.PublicKey` 类型的值用于验证。(`Ed25519`)
+
+### JWT使用示例
+
+**HMAC 的创建与签名**
+
+```go
+// token结构体，JWT库中定义，无需自己再定义
+type Token struct {
+  Raw       string                 // 原始Token字符串，当开始解析时填充此字段
+  Method    SigningMethod          // 签名使用的方法
+  Header    map[string]interface{} // JWT的header部分
+  Claims    Claims                 // JWT的payload部分
+  Signature string                 // JWT的签名部分，当开始解析时填充此字段
+  Valid     bool                   // JWT是否合法有效
+}
+
+func TestHmac(t *testing.T) {
+   // hmac的密钥类型是字节数组
+   secret := []byte("my secret")
+   // 头部是签名算法，可以根据选择自动确定
+   // 使用HS256算法，jwt.MapClaims是payload
+   token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+      "id":   123456,
+      "name": "jack",
+   })
+   fmt.Printf("%+v\n", *token)
+   // 签名
+   signedString, err := token.SignedString(secret)
+   fmt.Println(signedString, err)
+}
+```
+
+**HMAC 解析验证 Token**
+
+```go
+func TestParse(t *testing.T) {
+   secret := []byte("my secret")
+   // 假设通过HS256算法创建并签名生成了一个token
+   tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIzNDU2LCJuYW1lIjoiamFjayJ9.QxLw9NkFgZW3BluyXIofe4efp1IAy61s8b2fe3Eo86M"
+
+   // 传入token字符串和验证钩子函数，返回值就是一个Token结构体
+   token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+      // 验证签名算法是否匹配
+      if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+         return nil, fmt.Errorf("不匹配的签名算法: %s", token.Header["alg"])
+      }
+
+      // 返回验证密钥
+      return secret, nil
+   })
+   if err != nil {
+      fmt.Println(token, err)
+   }
+
+   if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+      fmt.Println(claims)
+   } else {
+      fmt.Println(err)
+   }
+
+}
+```
+
+## context 上下文
+
+# GORM -- Go 的 orm 框架
 
 > `orm`: `orm` 是通过实例对象的语法，完成关系型数据库的操作的技术，是对象-关系映射 Object/Relational Mapping 的缩写。
 
 > `GORM` 官方支持都数据库类型有：`MySQL`，`PostgreSQL`，`SQLite`，`SQL Server`
 
-### GORM 安装
+## GORM 安装
 
 ```shell
 # 安装gorm框架
@@ -2602,7 +4829,7 @@ go get -u gorm.io/gorm
 go get -u gorm.io/driver/mysql
 ```
 
-### 定义数据库模型
+## 定义数据库模型
 
 需注意以下几点：
 
@@ -2627,7 +4854,7 @@ go get -u gorm.io/driver/mysql
    }
    ```
 
-#### 定义一个完整的表结构的结构体
+### 定义一个完整的表结构的结构体
 
 > 下面就像是 `spring` 中的 `dto`
 
@@ -2645,7 +4872,7 @@ func (Guser) TableName() string {
 }
 ```
 
-#### 定义一个不完全的表结构的结构体
+### 定义一个不完全的表结构的结构体
 
 > 通常是传递给前端的结构体，传递完整表结构的结构体会向用户展示不必要的数据，下面的例子中，只展示两个字段
 
@@ -2660,7 +4887,7 @@ func (Suser) TableName() string {
 }
 ```
 
-#### 一个自动生成表结构的工具
+### 一个自动生成表结构的工具
 
 > 如果数据库表的项比较多的话，手动创建表结构的结构体很麻烦，所以下面介绍一个gorm官方提供的自动化工具`Gorm Gen`
 
@@ -2724,7 +4951,7 @@ func InitDB() {
 }
 ```
 
-### 初始化数据库
+## 初始化数据库
 
 > 以 mysql 数据库为例，下面连接 gin 表
 
@@ -2748,11 +4975,11 @@ func InitDB() {
 }
 ```
 
-### gorm 的 crud
+## gorm 的 crud
 
 > 下面例子中的数据库 `DB` 放在了 `models` 中 `core.go`
 
-#### 1. 查
+### 1. 查
 
 ```go
 // model.Guser 是数据库表的结构体
@@ -2766,7 +4993,7 @@ guserList := []models.Guser{}
 model.DB.Where("age=?", 26).Find(&guserList)
 ```
 
-#### 2. 增
+### 2. 增
 
 ```go
 // 添加一条数据
@@ -2780,7 +5007,7 @@ guser := models.Guser{
 model.DB.Create(&guser)
 ```
 
-#### 3. 改
+### 3. 改
 
 ```go
 // 查询id为2的数据
@@ -2800,7 +5027,7 @@ models.DB.Model(&u).Where("id=?", 2).Update("username", "哈哈")
 models.DB.Model(&u).Where("id>? AND id<?", 2, 9).Update("username", "哈哈")
 ```
 
-#### 4. 删
+### 4. 删
 
 ```go
 // 删除id为2的数据
@@ -2812,7 +5039,7 @@ u := models.Guser{}
 models.DB.Where("id = ?", 2).Delete(&u)
 ```
 
-### gorm 中使用原生 sql 语句
+## gorm 中使用原生 sql 语句
 
 ```go
 // 没有查询结果的
@@ -2823,9 +5050,9 @@ u := []models.User{}
 models.DB.Raw("select * from user").Scan(&u)
 ```
 
-### grom 多表查询
+## grom 多表查询
 
-#### 一对一 关联关系
+### 一对一 关联关系
 
 > 先定义多表结构体
 
@@ -2853,15 +5080,15 @@ models.DB.Preload("ClassInfo").Find(&user)
 
 ```
 
-#### 一对多 关联关系
+### 一对多 关联关系
 
-#### 多对多 关联关系
+### 多对多 关联关系
 
-## Go的日志技术
+# Go的日志技术
 
 > 这里介绍的官方提供的slog
 
-## Go-Zero --- 微服务框架
+# Go-Zero --- 微服务框架
 
 > `go-zero` 是一个集成了各种工程实践的 `web` 和 `rpc` 框架。通俗的讲：`go-zero` 既是一个 web 框架也是一个微服务框架。
 > 
@@ -2869,7 +5096,7 @@ models.DB.Preload("ClassInfo").Find(&user)
 > 
 > `go-zero` 中还内置了丰富的微服务治理能力，如：限流、熔断、降载、服务发现、负载均衡、链路追踪等。
 
-### 搭建 go-zero 环境
+## 搭建 go-zero 环境
 
 1. 首先要安装 golang
 
@@ -2898,7 +5125,7 @@ goctl env check --install --verbose --force
    
    > 在 Golang 中，推荐使用 go module 来管理。即在项目中用`go mod tidy`安装。
 
-### 创建并初始化项目
+## 创建并初始化项目
 
 1. 创建项目
 
@@ -2919,7 +5146,7 @@ go mod tidy
 
 <img src="./pic/go/屏幕截图 2026-01-14 133812.png">
 
-### goctl 常用命令
+## goctl 常用命令
 
 1. `goctl api new` 快速创建 API 服务（重点）
 
@@ -2957,7 +5184,7 @@ goctl api go --api shop.api --dir .
 goctl api doc --dir . --o ./doc
 ```
 
-### api 文件语法详解
+## api 文件语法详解
 
 > `api` 是 `go-zero` 自研的领域特性语言（下文称 `api` 语言 或 `api` 描述语言），旨在实现人性化的基础描述语言，作为生成 `HTTP` 服务最基本的描述语言。
 
@@ -3029,11 +5256,7 @@ service shop-foo-api {
 }
 ```
 
-### go-zero 中操作数据库
-
-#### 使用 go-zero 内置的工具 sqlx --- 不推荐
-
-#### 在 go-zero 中使用 gorm
+## go-zero 中使用gorm
 
 > 具体使用参考前面的 `gorm` 使用
 
@@ -3110,7 +5333,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 }
 ```
 
-### rpc -- 远程调用
+## rpc -- 远程调用
 
 > go 语言内置了 rpc 功能，以下演示 go 标准库 rpc 的用法
 
@@ -3180,13 +5403,13 @@ func main() {
 }
 ```
 
-#### protobuf 认识与使用
+## protobuf 认识与使用
 
-##### 1. protobuf 简介
+### 1. protobuf 简介
 
 > Protobuf 是一种结构化数据序列化机制，核心优势是高性能、跨平台、可扩展。在 go-zero 中，它用于定义 RPC 服务和消息格式。
 
-##### 2. 安装使用
+### 2. 安装使用
 
 > 好像跟着安装 go-zero 后就不需要安装下面的了
 
@@ -3203,7 +5426,7 @@ go install github.com/zeromicro/go-zero/tools/goctl@latest
 # goctl 已包含 protoc-gen-goctl 插件
 ```
 
-##### 3. protobuf 语法
+### 3. protobuf 语法
 
 1. 简单语法演示
 
@@ -3310,7 +5533,7 @@ goctl rpc protoc your_service.proto --go_out=. --go-grpc_out=. --zrpc_out=.
 > | repeated string tags = 3; | 数组/切片 | []string |
 > | map<string, string> data = 4; | 映射 | map[string]string |
 
-##### 4. protobuf 序列化与反序列化
+### 4. protobuf 序列化与反序列化
 
 > 假设上面用 proto 文件生成的 message 结构体是 Userinfo
 > 下面将 Userinfo 进行序列化
